@@ -1,12 +1,14 @@
 ﻿Imports System.Drawing
+Imports System.Runtime.InteropServices
 Imports System.Windows.Forms
 
 Public Class Helper
     Friend Shared fakeBmp As New Bitmap(1, 1)
     Friend Shared fakeGraphics As Graphics = Graphics.FromImage(fakeBmp)
     Friend Shared fakeGraphics2 As Graphics = Graphics.FromImage(fakeBmp)
-    Friend Shared hDC As IntPtr = fakeGraphics.GetHdc()
+    Public Shared hDC As IntPtr = fakeGraphics.GetHdc()
     Friend Shared ansi As System.Text.Encoding = System.Text.Encoding.Default
+    Friend Shared uni As System.Text.Encoding = System.Text.Encoding.Unicode
     Public Shared Function IntersectsWith(a1 As Long, a2 As Long, b1 As Long, b2 As Long) As Boolean
         Return (b1 < a2) And (a1 < b2)
     End Function
@@ -63,6 +65,22 @@ Public Class Helper
             End If
         Next
         Return b
+    End Function
+    Public Shared Function ArrayOfHexToBytes(ByVal v As String) As Byte()
+        v = v.Replace(" ", "")
+        Dim l As Integer = Math.Floor(v.Length / 2)
+        Dim b(l) As Byte
+        For i As Integer = 0 To l
+            b(i) = "&" & Mid(v, i + 1, 2)
+        Next
+        Return b
+    End Function
+    Public Shared Function BytesToArrayOfHex(ByVal b As Byte()) As String
+        Dim v As String = ""
+        For Each i In b
+            v &= Hex2(i)
+        Next
+        Return v
     End Function
     Public Shared Function GetSizeText(ByVal n As Long) As String
         If n < 1024 Then
@@ -151,6 +169,13 @@ Public Class Helper
         GDI32.SelectObject(hDC, hFontOld)
         Return rgAbcWidths
     End Function
+    Friend Shared Function GetABCWidthsW(ByVal hFont As IntPtr) As GDI32.AbcFloat()
+        Dim hFontOld As IntPtr = GDI32.SelectObject(hDC, hFont)
+        Dim rgAbcWidths(UShort.MaxValue) As GDI32.AbcFloat
+        GDI32.GetCharABCWidthsFloatW(hDC, 0, UShort.MaxValue, rgAbcWidths)
+        GDI32.SelectObject(hDC, hFontOld)
+        Return rgAbcWidths
+    End Function
     Friend Shared Function GetABCWidths(ByVal font As Font) As GDI32.AbcFloat()
         Dim hFont As IntPtr = font.ToHfont()
         Dim rgAbcWidths() As GDI32.AbcFloat = GetABCWidths(hFont)
@@ -165,7 +190,23 @@ Public Class Helper
         Dim abc As GDI32.AbcFloat() = GetABCWidths(hFont)
         Return GetTextWidth(abc, s)
     End Function
+    Public Shared Function GetTextSize(ByVal hFont As IntPtr, ByVal s As String) As Size
+        GDI32.SelectObject(hDC, hFont)
+        Dim lpBuffer As Size = Size.Empty
+        Dim res As Boolean = GDI32.GetTextExtentPoint32(hDC, s, s.Length, lpBuffer)
+        Return lpBuffer
+    End Function
     Friend Shared Function GetTextWidth(ByVal abcWidths As GDI32.AbcFloat(), ByVal s As String) As Single
+        Dim b As Byte() = uni.GetBytes(s)
+        Dim code As Integer = 0
+        Dim w As Single = 0
+        For i As Integer = 0 To b.Length - 1 Step 2
+            code = BitConverter.ToUInt16(b, i)
+            w += abcWidths(code).flA + abcWidths(code).flB + abcWidths(code).flC
+        Next
+        Return w
+    End Function
+    Friend Shared Function GetTextWidthA(ByVal abcWidths As GDI32.AbcFloat(), ByVal s As String) As Single
         Dim byt As Byte = 0
         Dim w As Single = 0
         For Each i In s
@@ -174,7 +215,40 @@ Public Class Helper
         Next
         Return w
     End Function
+    Friend Shared Function GetTextWidthW(ByVal hFont As IntPtr, ByVal b As Byte()) As Single
+        Dim hFontOld As IntPtr = GDI32.SelectObject(hDC, hFont)
+        Dim rgAbcWidths(0) As GDI32.AbcFloat
+
+        Dim code As Integer = 0
+        Dim w As Single = 0
+        For i As Integer = 0 To b.Length - 1 Step 2
+            code = BitConverter.ToUInt16(b, i)
+            GDI32.GetCharABCWidthsFloatW(hDC, code, code, rgAbcWidths)
+            w += rgAbcWidths(0).flA + rgAbcWidths(0).flB + rgAbcWidths(0).flC
+        Next
+
+        GDI32.SelectObject(hDC, hFontOld)
+        Return w
+    End Function
+    Friend Shared Function GetTextWidthW(ByVal abcWidths As GDI32.AbcFloat(), ByVal b As Byte()) As Single
+        Dim code As Integer = 0
+        Dim w As Single = 0
+        For i As Integer = 0 To b.Length - 1 Step 2
+            code = BitConverter.ToUInt16(b, i)
+            w += abcWidths(code).flA + abcWidths(code).flB + abcWidths(code).flC
+        Next
+        Return w
+    End Function
     Friend Shared Function GetTextWidth(ByVal abcWidths As GDI32.AbcFloat(), ByVal textBytes As Byte()) As Single
+        Dim code As Integer = 0
+        Dim w As Single = 0
+        For i As Integer = 0 To textBytes.Length - 1 Step 2
+            code = BitConverter.ToUInt16(textBytes, i)
+            w += abcWidths(code).flA + abcWidths(code).flB + abcWidths(code).flC
+        Next
+        Return w
+    End Function
+    Friend Shared Function GetTextWidthA(ByVal abcWidths As GDI32.AbcFloat(), ByVal textBytes As Byte()) As Single
         Dim w As Single = 0
         For Each i In textBytes
             w += abcWidths(i).flA + abcWidths(i).flB + abcWidths(i).flC
@@ -182,6 +256,9 @@ Public Class Helper
         Return w
     End Function
 
+    Public Shared Sub FillRectangle(ByVal hDC As IntPtr, ByVal rect As Rectangle, ByVal color As Color)
+        FillRectangle(hDC, rect, GetRGB(color))
+    End Sub
     Public Shared Sub FillRectangle(ByVal hDC As IntPtr, ByVal rect As Rectangle, ByVal color As Integer)
         Dim hBrush As IntPtr = GDI32.CreateSolidBrush(color)
         Dim hPen As IntPtr = GDI32.GetStockObject(GDI32.StockObjects.NULL_PEN)
@@ -196,6 +273,9 @@ Public Class Helper
 
         GDI32.DeleteObject(hBrush)
         'GDI32.DeleteObject(hPen)
+    End Sub
+    Public Shared Sub DrawRectangle(ByVal hDC As IntPtr, ByVal rect As Rectangle, ByVal color As Color)
+        DrawRectangle(hDC, rect, GetRGB(color))
     End Sub
     Public Shared Sub DrawRectangle(ByVal hDC As IntPtr, ByVal rect As Rectangle, ByVal color As Integer)
         Dim hBrush As IntPtr = GDI32.GetStockObject(GDI32.StockObjects.NULL_BRUSH)
@@ -212,9 +292,18 @@ Public Class Helper
         'GDI32.DeleteObject(hBrush)
         GDI32.DeleteObject(hPen)
     End Sub
+    Public Shared Sub FillRectangle(ByVal hDC As IntPtr, ByVal rect As Rectangle, ByVal color As Color, ByVal borderColor As Color)
+        FillRectangle(hDC, rect, GetRGB(color), GetRGB(borderColor))
+    End Sub
+    Public Shared Sub FillRectangle(ByVal hDC As IntPtr, ByVal rect As Rectangle, ByVal color As Color, ByVal borderColor As Color, borderWidth As Integer)
+        FillRectangle(hDC, rect, GetRGB(color), GetRGB(borderColor), borderWidth)
+    End Sub
     Public Shared Sub FillRectangle(ByVal hDC As IntPtr, ByVal rect As Rectangle, ByVal color As Integer, ByVal borderColor As Integer)
+        FillRectangle(hDC, rect, color, borderColor, 1)
+    End Sub
+    Public Shared Sub FillRectangle(ByVal hDC As IntPtr, ByVal rect As Rectangle, ByVal color As Integer, ByVal borderColor As Integer, ByVal borderWidth As Integer)
         Dim hBrush As IntPtr = GDI32.CreateSolidBrush(color)
-        Dim hPen As IntPtr = GDI32.CreatePen(GDI32.PenStyle.PS_SOLID, 1, borderColor)
+        Dim hPen As IntPtr = GDI32.CreatePen(GDI32.PenStyle.PS_SOLID, borderWidth, borderColor)
 
         Dim hBrushPrevious As IntPtr = GDI32.SelectObject(hDC, hBrush)
         Dim hPenPrevious As IntPtr = GDI32.SelectObject(hDC, hPen)
@@ -235,7 +324,7 @@ Public Class Helper
         Return n2
     End Function
 
-    Public Shared Function FlipCursor() As System.Windows.Forms.Cursor
+    Public Shared Function FlipedCursor() As System.Windows.Forms.Cursor
         Dim cur As Cursor = Cursors.Arrow
         Dim ico As Icon = Icon.FromHandle(cur.Handle)
         Dim bmp As Bitmap = ico.ToBitmap
@@ -250,4 +339,30 @@ Public Class Helper
         bmp2.Dispose()
         Return rcur
     End Function
+
+#Region "VarPtr"
+    Public Declare Function VarPtr Lib "msvbvm60.dll" Alias "VarPtr" (ByRef Var As Integer) As Integer
+    Public Declare Function VarPtr Lib "msvbvm60.dll" Alias "VarPtr" (ByRef Var As Boolean) As Integer
+    Public Shared Function GetPtr(ByRef Obj As Object) As IntPtr
+        Dim ptr As IntPtr = Marshal.AllocHGlobal(Marshal.SizeOf(Obj))
+        Marshal.StructureToPtr(Obj, ptr, False)
+        Return ptr
+    End Function
+    Public Shared Function FromPtr(ByVal Ptr As IntPtr, ByVal ToType As Type) As Object
+        Dim Obj As Object = Marshal.PtrToStructure(Ptr, ToType)
+        ReleasePtr(Ptr)
+        Return Obj
+    End Function
+    Public Shared Function FromPtr(ByVal Ptr As IntPtr, ByVal ToType As Type, ByVal FreeMemory As Boolean) As Object
+        Dim Obj As Object = Marshal.PtrToStructure(Ptr, ToType)
+        'Marshal.ptrto
+        If FreeMemory Then ReleasePtr(Ptr)
+        Return Obj
+    End Function
+    Public Shared Sub ReleasePtr(ByVal Ptr As IntPtr)
+        Marshal.FreeHGlobal(Ptr)
+    End Sub
+
+#End Region
+
 End Class

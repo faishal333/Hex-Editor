@@ -23,6 +23,7 @@ Partial Class Form1
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         Me.components = New System.ComponentModel.Container()
+        Dim Int16ViewTransformer1 As SalSal.Transformers.Int16ViewTransformer = New SalSal.Transformers.Int16ViewTransformer()
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(Form1))
         Me.Timer1 = New System.Windows.Forms.Timer(Me.components)
         Me.StatusStrip1 = New System.Windows.Forms.StatusStrip()
@@ -30,14 +31,18 @@ Partial Class Form1
         Me.ToolStripStatusLabel4 = New System.Windows.Forms.ToolStripStatusLabel()
         Me.ToolStripStatusLabel5 = New System.Windows.Forms.ToolStripStatusLabel()
         Me.ToolStripStatusLabel1 = New System.Windows.Forms.ToolStripStatusLabel()
+        Me.ContextMenuStrip1 = New System.Windows.Forms.ContextMenuStrip(Me.components)
+        Me.TestToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.TransformBox1 = New SalSal.HexBox()
         Me.Panel2 = New System.Windows.Forms.Panel()
         Me.Button4 = New System.Windows.Forms.Button()
         Me.Panel1 = New System.Windows.Forms.Panel()
+        Me.CheckBox8 = New System.Windows.Forms.CheckBox()
+        Me.CheckBox7 = New System.Windows.Forms.CheckBox()
+        Me.CheckBox6 = New System.Windows.Forms.CheckBox()
         Me.Button9 = New System.Windows.Forms.Button()
         Me.Label10 = New System.Windows.Forms.Label()
         Me.Button8 = New System.Windows.Forms.Button()
-        Me.Label9 = New System.Windows.Forms.Label()
         Me.Label8 = New System.Windows.Forms.Label()
         Me.Label7 = New System.Windows.Forms.Label()
         Me.Button6 = New System.Windows.Forms.Button()
@@ -62,6 +67,7 @@ Partial Class Form1
         Me.CheckBox2 = New System.Windows.Forms.CheckBox()
         Me.CheckBox1 = New System.Windows.Forms.CheckBox()
         Me.StatusStrip1.SuspendLayout()
+        Me.ContextMenuStrip1.SuspendLayout()
         Me.TransformBox1.SuspendLayout()
         Me.Panel2.SuspendLayout()
         Me.Panel1.SuspendLayout()
@@ -69,11 +75,12 @@ Partial Class Form1
         '
         'Timer1
         '
+        Me.Timer1.Interval = 1
         '
         'StatusStrip1
         '
         Me.StatusStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.ToolStripStatusLabel3, Me.ToolStripStatusLabel4, Me.ToolStripStatusLabel5, Me.ToolStripStatusLabel1})
-        Me.StatusStrip1.Location = New System.Drawing.Point(0, 350)
+        Me.StatusStrip1.Location = New System.Drawing.Point(0, 368)
         Me.StatusStrip1.Name = "StatusStrip1"
         Me.StatusStrip1.Size = New System.Drawing.Size(661, 24)
         Me.StatusStrip1.TabIndex = 2
@@ -84,7 +91,7 @@ Partial Class Form1
         Me.ToolStripStatusLabel3.AutoSize = False
         Me.ToolStripStatusLabel3.BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Right
         Me.ToolStripStatusLabel3.Name = "ToolStripStatusLabel3"
-        Me.ToolStripStatusLabel3.Size = New System.Drawing.Size(139, 19)
+        Me.ToolStripStatusLabel3.Size = New System.Drawing.Size(160, 19)
         Me.ToolStripStatusLabel3.Text = "Ready"
         Me.ToolStripStatusLabel3.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         '
@@ -93,14 +100,14 @@ Partial Class Form1
         Me.ToolStripStatusLabel4.AutoSize = False
         Me.ToolStripStatusLabel4.BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Right
         Me.ToolStripStatusLabel4.Name = "ToolStripStatusLabel4"
-        Me.ToolStripStatusLabel4.Size = New System.Drawing.Size(225, 19)
+        Me.ToolStripStatusLabel4.Size = New System.Drawing.Size(250, 19)
         Me.ToolStripStatusLabel4.Text = "length: 0 (0 Bytes)   lines: 0"
         Me.ToolStripStatusLabel4.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         '
         'ToolStripStatusLabel5
         '
         Me.ToolStripStatusLabel5.Name = "ToolStripStatusLabel5"
-        Me.ToolStripStatusLabel5.Size = New System.Drawing.Size(248, 19)
+        Me.ToolStripStatusLabel5.Size = New System.Drawing.Size(202, 19)
         Me.ToolStripStatusLabel5.Spring = True
         Me.ToolStripStatusLabel5.Text = "Ln: 0 Col: 0 Sel: 0 Bytes: 0"
         Me.ToolStripStatusLabel5.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
@@ -112,10 +119,24 @@ Partial Class Form1
         Me.ToolStripStatusLabel1.Size = New System.Drawing.Size(34, 19)
         Me.ToolStripStatusLabel1.Text = "OVR"
         '
+        'ContextMenuStrip1
+        '
+        Me.ContextMenuStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.TestToolStripMenuItem})
+        Me.ContextMenuStrip1.Name = "ContextMenuStrip1"
+        Me.ContextMenuStrip1.Size = New System.Drawing.Size(96, 26)
+        '
+        'TestToolStripMenuItem
+        '
+        Me.TestToolStripMenuItem.Name = "TestToolStripMenuItem"
+        Me.TestToolStripMenuItem.Size = New System.Drawing.Size(95, 22)
+        Me.TestToolStripMenuItem.Text = "Test"
+        '
         'TransformBox1
         '
+        Me.TransformBox1.AllowDrop = True
         Me.TransformBox1.AutoScroll = True
-        Me.TransformBox1.AutoSnap = False
+        Me.TransformBox1.AutoSnap = True
+        Me.TransformBox1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
         Me.TransformBox1.Collumn = 8
         Me.TransformBox1.CollumnHeaderMode = SalSal.HeaderMode.[Default]
         Me.TransformBox1.CollumnHeaderUserPaint = False
@@ -124,33 +145,44 @@ Partial Class Form1
         Me.TransformBox1.Controls.Add(Me.Panel1)
         Me.TransformBox1.Cursor = System.Windows.Forms.Cursors.IBeam
         Me.TransformBox1.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.TransformBox1.ExtraWidth = -1
+        Me.TransformBox1.EnableContextMenu = True
+        Me.TransformBox1.EnableGotoDialog = True
+        Me.TransformBox1.EnableHotFind = True
+        Me.TransformBox1.ExtraWidth = 0
+        Me.TransformBox1.ForceHotFind = False
         Me.TransformBox1.HighlightCurrentLine = True
         Me.TransformBox1.Location = New System.Drawing.Point(0, 0)
         Me.TransformBox1.MultiSelection = True
         Me.TransformBox1.Name = "TransformBox1"
         Me.TransformBox1.OffsetAutoSize = True
         Me.TransformBox1.OffsetHexSign = True
+        Me.TransformBox1.OffsetLiteMode = True
         Me.TransformBox1.OffsetType = SalSal.OffsetMode.Hex2
         Me.TransformBox1.OffsetUserPaint = False
+        Me.TransformBox1.OffsetWidth = 45
+        Me.TransformBox1.ReadOnly = False
         Me.TransformBox1.SelectedBoxIndex = 0
+        Me.TransformBox1.SelectedTransfomer = Int16ViewTransformer1
         Me.TransformBox1.SelectionPower = False
+        Me.TransformBox1.Shift = CType(0, Long)
         Me.TransformBox1.ShowBorder = True
         Me.TransformBox1.ShowInvalidateArea = False
-        Me.TransformBox1.Size = New System.Drawing.Size(661, 350)
+        Me.TransformBox1.ShowShiftSlider = False
+        Me.TransformBox1.Size = New System.Drawing.Size(661, 368)
         Me.TransformBox1.TabIndex = 0
+        Me.TransformBox1.UnAceessableSymbol = Global.Microsoft.VisualBasic.ChrW(63)
         Me.TransformBox1.ViewMode = SalSal.TransformMode.Int16View
-        Me.TransformBox1.WriteMode = SalSal.WriteMode.Over
+        Me.TransformBox1.WriteMode = SalSal.WriteMode.Overwrite
         '
         'Panel2
         '
         Me.Panel2.Controls.Add(Me.Button4)
         Me.Panel2.Cursor = System.Windows.Forms.Cursors.Default
         Me.Panel2.Dock = System.Windows.Forms.DockStyle.Right
-        Me.Panel2.Location = New System.Drawing.Point(511, 0)
+        Me.Panel2.Location = New System.Drawing.Point(507, 0)
         Me.Panel2.Margin = New System.Windows.Forms.Padding(0, 3, 0, 3)
         Me.Panel2.Name = "Panel2"
-        Me.Panel2.Size = New System.Drawing.Size(14, 350)
+        Me.Panel2.Size = New System.Drawing.Size(14, 364)
         Me.Panel2.TabIndex = 18
         '
         'Button4
@@ -161,7 +193,7 @@ Partial Class Form1
         Me.Button4.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.Button4.Location = New System.Drawing.Point(0, 0)
         Me.Button4.Name = "Button4"
-        Me.Button4.Size = New System.Drawing.Size(14, 350)
+        Me.Button4.Size = New System.Drawing.Size(14, 364)
         Me.Button4.TabIndex = 0
         Me.Button4.TabStop = False
         Me.Button4.Text = ">"
@@ -169,10 +201,12 @@ Partial Class Form1
         '
         'Panel1
         '
+        Me.Panel1.Controls.Add(Me.CheckBox8)
+        Me.Panel1.Controls.Add(Me.CheckBox7)
+        Me.Panel1.Controls.Add(Me.CheckBox6)
         Me.Panel1.Controls.Add(Me.Button9)
         Me.Panel1.Controls.Add(Me.Label10)
         Me.Panel1.Controls.Add(Me.Button8)
-        Me.Panel1.Controls.Add(Me.Label9)
         Me.Panel1.Controls.Add(Me.Label8)
         Me.Panel1.Controls.Add(Me.Label7)
         Me.Panel1.Controls.Add(Me.Button6)
@@ -198,15 +232,45 @@ Partial Class Form1
         Me.Panel1.Controls.Add(Me.CheckBox1)
         Me.Panel1.Cursor = System.Windows.Forms.Cursors.Default
         Me.Panel1.Dock = System.Windows.Forms.DockStyle.Right
-        Me.Panel1.Location = New System.Drawing.Point(525, 0)
+        Me.Panel1.Location = New System.Drawing.Point(521, 0)
         Me.Panel1.Name = "Panel1"
-        Me.Panel1.Size = New System.Drawing.Size(136, 350)
+        Me.Panel1.Size = New System.Drawing.Size(136, 364)
         Me.Panel1.TabIndex = 1
+        '
+        'CheckBox8
+        '
+        Me.CheckBox8.AutoSize = True
+        Me.CheckBox8.Location = New System.Drawing.Point(9, 165)
+        Me.CheckBox8.Name = "CheckBox8"
+        Me.CheckBox8.Size = New System.Drawing.Size(86, 17)
+        Me.CheckBox8.TabIndex = 29
+        Me.CheckBox8.Text = "Show Shifter"
+        Me.CheckBox8.UseVisualStyleBackColor = True
+        '
+        'CheckBox7
+        '
+        Me.CheckBox7.AutoSize = True
+        Me.CheckBox7.Location = New System.Drawing.Point(9, 151)
+        Me.CheckBox7.Name = "CheckBox7"
+        Me.CheckBox7.Size = New System.Drawing.Size(101, 17)
+        Me.CheckBox7.TabIndex = 28
+        Me.CheckBox7.Text = "Force Auto Find"
+        Me.CheckBox7.UseVisualStyleBackColor = True
+        '
+        'CheckBox6
+        '
+        Me.CheckBox6.AutoSize = True
+        Me.CheckBox6.Location = New System.Drawing.Point(9, 137)
+        Me.CheckBox6.Name = "CheckBox6"
+        Me.CheckBox6.Size = New System.Drawing.Size(98, 17)
+        Me.CheckBox6.TabIndex = 27
+        Me.CheckBox6.Text = "Show Segment"
+        Me.CheckBox6.UseVisualStyleBackColor = True
         '
         'Button9
         '
         Me.Button9.Image = CType(resources.GetObject("Button9.Image"), System.Drawing.Image)
-        Me.Button9.Location = New System.Drawing.Point(93, 306)
+        Me.Button9.Location = New System.Drawing.Point(94, 331)
         Me.Button9.Margin = New System.Windows.Forms.Padding(0)
         Me.Button9.Name = "Button9"
         Me.Button9.Size = New System.Drawing.Size(23, 20)
@@ -217,7 +281,7 @@ Partial Class Form1
         'Label10
         '
         Me.Label10.AutoSize = True
-        Me.Label10.Location = New System.Drawing.Point(6, 260)
+        Me.Label10.Location = New System.Drawing.Point(6, 285)
         Me.Label10.Name = "Label10"
         Me.Label10.Size = New System.Drawing.Size(54, 13)
         Me.Label10.TabIndex = 25
@@ -226,26 +290,17 @@ Partial Class Form1
         'Button8
         '
         Me.Button8.Image = CType(resources.GetObject("Button8.Image"), System.Drawing.Image)
-        Me.Button8.Location = New System.Drawing.Point(93, 243)
+        Me.Button8.Location = New System.Drawing.Point(93, 64)
         Me.Button8.Margin = New System.Windows.Forms.Padding(0)
         Me.Button8.Name = "Button8"
         Me.Button8.Size = New System.Drawing.Size(23, 20)
         Me.Button8.TabIndex = 24
         Me.Button8.UseVisualStyleBackColor = False
         '
-        'Label9
-        '
-        Me.Label9.AutoSize = True
-        Me.Label9.Location = New System.Drawing.Point(6, 247)
-        Me.Label9.Name = "Label9"
-        Me.Label9.Size = New System.Drawing.Size(34, 13)
-        Me.Label9.TabIndex = 23
-        Me.Label9.Text = "Font: "
-        '
         'Label8
         '
         Me.Label8.AutoSize = True
-        Me.Label8.Location = New System.Drawing.Point(6, 288)
+        Me.Label8.Location = New System.Drawing.Point(6, 313)
         Me.Label8.Name = "Label8"
         Me.Label8.Size = New System.Drawing.Size(64, 13)
         Me.Label8.TabIndex = 22
@@ -254,7 +309,7 @@ Partial Class Form1
         'Label7
         '
         Me.Label7.AutoSize = True
-        Me.Label7.Location = New System.Drawing.Point(6, 273)
+        Me.Label7.Location = New System.Drawing.Point(6, 298)
         Me.Label7.Name = "Label7"
         Me.Label7.Size = New System.Drawing.Size(60, 13)
         Me.Label7.TabIndex = 21
@@ -263,7 +318,7 @@ Partial Class Form1
         'Button6
         '
         Me.Button6.BackColor = System.Drawing.SystemColors.Window
-        Me.Button6.Location = New System.Drawing.Point(93, 288)
+        Me.Button6.Location = New System.Drawing.Point(94, 313)
         Me.Button6.Name = "Button6"
         Me.Button6.Size = New System.Drawing.Size(23, 15)
         Me.Button6.TabIndex = 20
@@ -272,7 +327,7 @@ Partial Class Form1
         'Button7
         '
         Me.Button7.BackColor = System.Drawing.SystemColors.WindowText
-        Me.Button7.Location = New System.Drawing.Point(93, 273)
+        Me.Button7.Location = New System.Drawing.Point(94, 298)
         Me.Button7.Name = "Button7"
         Me.Button7.Size = New System.Drawing.Size(23, 15)
         Me.Button7.TabIndex = 19
@@ -353,7 +408,7 @@ Partial Class Form1
         'Label3
         '
         Me.Label3.AutoSize = True
-        Me.Label3.Location = New System.Drawing.Point(6, 174)
+        Me.Label3.Location = New System.Drawing.Point(6, 216)
         Me.Label3.Name = "Label3"
         Me.Label3.Size = New System.Drawing.Size(47, 13)
         Me.Label3.TabIndex = 10
@@ -364,15 +419,15 @@ Partial Class Form1
         Me.ComboBox3.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.ComboBox3.FormattingEnabled = True
         Me.ComboBox3.Items.AddRange(New Object() {"2", "4", "8", "16", "32"})
-        Me.ComboBox3.Location = New System.Drawing.Point(56, 171)
+        Me.ComboBox3.Location = New System.Drawing.Point(53, 213)
         Me.ComboBox3.Name = "ComboBox3"
-        Me.ComboBox3.Size = New System.Drawing.Size(60, 21)
+        Me.ComboBox3.Size = New System.Drawing.Size(63, 21)
         Me.ComboBox3.TabIndex = 9
         '
         'Label2
         '
         Me.Label2.AutoSize = True
-        Me.Label2.Location = New System.Drawing.Point(6, 147)
+        Me.Label2.Location = New System.Drawing.Point(6, 189)
         Me.Label2.Name = "Label2"
         Me.Label2.Size = New System.Drawing.Size(38, 13)
         Me.Label2.TabIndex = 8
@@ -383,15 +438,15 @@ Partial Class Form1
         Me.ComboBox2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.ComboBox2.FormattingEnabled = True
         Me.ComboBox2.Items.AddRange(New Object() {"Hex", "Decimal"})
-        Me.ComboBox2.Location = New System.Drawing.Point(56, 144)
+        Me.ComboBox2.Location = New System.Drawing.Point(53, 186)
         Me.ComboBox2.Name = "ComboBox2"
-        Me.ComboBox2.Size = New System.Drawing.Size(60, 21)
+        Me.ComboBox2.Size = New System.Drawing.Size(63, 21)
         Me.ComboBox2.TabIndex = 7
         '
         'Label1
         '
         Me.Label1.AutoSize = True
-        Me.Label1.Location = New System.Drawing.Point(6, 203)
+        Me.Label1.Location = New System.Drawing.Point(6, 245)
         Me.Label1.Name = "Label1"
         Me.Label1.Size = New System.Drawing.Size(62, 13)
         Me.Label1.TabIndex = 6
@@ -401,8 +456,8 @@ Partial Class Form1
         '
         Me.ComboBox1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.ComboBox1.FormattingEnabled = True
-        Me.ComboBox1.Items.AddRange(New Object() {"Byte", "Binary", "Char (ANSI)", "Char (Unicode)", "Double", "Float", "Hex", "Hex - 2 Bytes", "Hex - 4 Bytes", "Hex - 8 Bytes", "Int16", "Int32", "Int64", "UInt16", "UInt32", "UInt64"})
-        Me.ComboBox1.Location = New System.Drawing.Point(9, 219)
+        Me.ComboBox1.Items.AddRange(New Object() {"Byte", "Binary", "Char (ANSI)", "Char (Unicode)", "Double", "Float", "Hex", "Hex - 2 Bytes", "Hex - 4 Bytes", "Hex - 8 Bytes", "Int16", "Int32", "Int64", "UInt16", "UInt32", "UInt64", "Text", "TextW"})
+        Me.ComboBox1.Location = New System.Drawing.Point(9, 261)
         Me.ComboBox1.Name = "ComboBox1"
         Me.ComboBox1.Size = New System.Drawing.Size(107, 21)
         Me.ComboBox1.TabIndex = 5
@@ -461,7 +516,7 @@ Partial Class Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(661, 374)
+        Me.ClientSize = New System.Drawing.Size(661, 392)
         Me.Controls.Add(Me.TransformBox1)
         Me.Controls.Add(Me.StatusStrip1)
         Me.Name = "Form1"
@@ -469,6 +524,7 @@ Partial Class Form1
         Me.Text = "Form1"
         Me.StatusStrip1.ResumeLayout(False)
         Me.StatusStrip1.PerformLayout()
+        Me.ContextMenuStrip1.ResumeLayout(False)
         Me.TransformBox1.ResumeLayout(False)
         Me.Panel2.ResumeLayout(False)
         Me.Panel1.ResumeLayout(False)
@@ -508,11 +564,15 @@ Partial Class Form1
     Friend WithEvents Button4 As Button
     Friend WithEvents Button5 As Button
     Friend WithEvents Button8 As Button
-    Friend WithEvents Label9 As Label
     Friend WithEvents Label8 As Label
     Friend WithEvents Label7 As Label
     Friend WithEvents Button6 As Button
     Friend WithEvents Button7 As Button
     Friend WithEvents Label10 As Label
     Friend WithEvents Button9 As Button
+    Friend WithEvents ContextMenuStrip1 As ContextMenuStrip
+    Friend WithEvents TestToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents CheckBox6 As CheckBox
+    Friend WithEvents CheckBox7 As CheckBox
+    Friend WithEvents CheckBox8 As CheckBox
 End Class

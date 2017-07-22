@@ -1,5 +1,13 @@
 ﻿Public Class SelectionManager
     Friend itms As New List(Of SelectionItem)
+    Friend Property tb As HexBox
+    Friend trans As ITransformer
+    Friend Sub New(tb As HexBox, ByVal trans As ITransformer)
+        Me.tb = tb
+        Me.trans = trans
+    End Sub
+
+#Region "Old"
     Public ReadOnly Property Items As List(Of SelectionItem)
         Get
             If itms.Count = 0 Then
@@ -19,7 +27,7 @@
     Public Function AddSelection(ByVal position As Long, ByVal Length As Long) As SelectionItem
         Backup()
         Dim sItem As SelectionItem = AddSelection(position, position + Length, False)
-        tb.InvalidateSEL(Me, sItem)
+        tb.InvalidateSEL(Me, trans, sItem)
         Return sItem
     End Function
     Public Function AddSelectionByIndex(ByVal index As Long, ByVal Length As Long) As SelectionItem
@@ -47,19 +55,14 @@
         Length = line + col
 
         Dim sItem As SelectionItem = AddSelection(position, position + Length, False)
-        tb.InvalidateSEL(Me, sItem)
+        tb.InvalidateSEL(Me, trans, sItem)
         Return sItem
     End Function
-    Friend Function AddSelection(Anchor As Long, Caret As Long, LF As Boolean) As SelectionItem
+    Public Function AddSelection(Anchor As Long, Caret As Long, LF As Boolean) As SelectionItem
         Dim item As New SelectionItem(Me, Anchor, Caret, LF)
         itms.Add(item)
         Return item
     End Function
-    Friend Property tb As HexBox
-    Friend Sub New(tb As HexBox)
-        Me.tb = tb
-    End Sub
-
     Public Function IsSelected(ByVal position As Long) As Boolean
         Return IsSelected(position, Nothing)
     End Function
@@ -93,7 +96,7 @@
         Return False
     End Function
     Public Function Clone() As SelectionManager
-        Dim sm As New SelectionManager(tb)
+        Dim sm As New SelectionManager(tb, trans)
 
         For Each i In Me.Items
             sm.itms.Add(i.Clone)
@@ -102,14 +105,14 @@
         Return sm
     End Function
     Friend Function TransformSelection(ByVal source As ITransformer, ByVal target As ITransformer) As SelectionManager
-        Dim sm As New SelectionManager(tb)
+        Dim sm As New SelectionManager(tb, source)
 
         Dim perData As Integer = source.CharsPerData + source.Sparator
         Dim colFloor As Integer = Math.Floor(tb.SM.col_count / source.LengthPerData) * source.LengthPerData
         Dim charsPerRow As Integer = (colFloor / source.LengthPerData * perData)
         Dim charsWhitoutRedZonePerRow As Integer = (colFloor / source.LengthPerData * perData)
         Dim redZoneLength As Integer = (tb.SM.col_count - colFloor) * 2
-        If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += source.Sparator
+        ' If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += source.Sparator
         charsPerRow += redZoneLength
 
         Dim charsPerRowSource As Integer = charsPerRow
@@ -120,7 +123,7 @@
         charsPerRow = (colFloor / target.LengthPerData * perData)
         charsWhitoutRedZonePerRow = (colFloor / target.LengthPerData * perData)
         redZoneLength = (tb.SM.col_count - colFloor) * 2
-        If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += target.Sparator
+        ' If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += target.Sparator
         charsPerRow += redZoneLength
 
         Dim charsPerRowTarget As Integer = charsPerRow
@@ -131,7 +134,7 @@
             Dim Caret As Long = itm.car
             Dim LF As Boolean = itm.LF
 
-            Dim data As Integer() = {Anchor, Caret}
+            Dim data As Long() = {Anchor, Caret}
 
             For i As Integer = 0 To data.Length - 1
                 Dim lineSource As Long = Math.Floor(data(i) / charsPerRowSource)
@@ -141,7 +144,7 @@
                 Dim isAdd As Boolean = False
                 Dim md As Long = data(i) Mod charsPerRowSource
                 Dim md2 As Long = md Mod (source.CharsPerData + source.Sparator)
-                If Not md2 = 0 Then
+                If Not md2 = 0 And i = 1 Then
                     isAdd = True
                 End If
 
@@ -168,10 +171,22 @@
                 Else
                     hLength = target.CharsPerData + target.Sparator
                     If target.LengthPerData < source.LengthPerData Then
-                        hLength = hLength * source.LengthPerData / target.LengthPerData
+                        Dim isSourceContainsRedzone As Boolean = ((tb.SM.col_count Mod source.LengthPerData) = 0)
+                        Dim sourceIsInRedZone As Boolean = indexColSource = Math.Floor(tb.SM.col_count / source.LengthPerData)
+                        If sourceIsInRedZone Then
+                            hLength = hLength * source.LengthPerData / target.LengthPerData
+                            If isAdd Then
+                                If (res Mod charsPerRowTarget) + hLength > charsPerRowTarget Then
+                                    hLength = charsPerRowTarget - (res Mod charsPerRowTarget)
+                                End If
+                            End If
+                        Else
+                            hLength = hLength * source.LengthPerData / target.LengthPerData
+                        End If
                     End If
                 End If
 
+                If hLength > charsPerRow Then hLength = charsPerRow
                 If i = 0 And Anchor > Caret Then
                     If isAdd Then res += hLength
                 ElseIf i = 1 And Caret > Anchor Then
@@ -192,7 +207,7 @@
         Dim charsPerRow As Integer = (colFloor / source.LengthPerData * perData)
         Dim charsWhitoutRedZonePerRow As Integer = (colFloor / source.LengthPerData * perData)
         Dim redZoneLength As Integer = (tb.SM.col_count - colFloor) * 2
-        If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += source.Sparator
+        'If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += source.Sparator
         charsPerRow += redZoneLength
 
         Dim charsPerRowSource As Integer = charsPerRow
@@ -203,7 +218,7 @@
         charsPerRow = (colFloor / target.LengthPerData * perData)
         charsWhitoutRedZonePerRow = (colFloor / target.LengthPerData * perData)
         redZoneLength = (tb.SM.col_count - colFloor) * 2
-        If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += target.Sparator
+        'If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += target.Sparator
         charsPerRow += redZoneLength
 
         Dim charsPerRowTarget As Integer = charsPerRow
@@ -213,7 +228,7 @@
         Dim Caret As Long = Item.car
         Dim LF As Boolean = Item.LF
 
-        Dim data As Integer() = {Anchor, Caret}
+        Dim data As Long() = {Anchor, Caret}
 
         For i As Integer = 0 To data.Length - 1
             Dim lineSource As Long = Math.Floor(data(i) / charsPerRowSource)
@@ -223,7 +238,7 @@
             Dim isAdd As Boolean = False
             Dim md As Long = data(i) Mod charsPerRowSource
             Dim md2 As Long = md Mod (source.CharsPerData + source.Sparator)
-            If Not md2 = 0 Then
+            If Not md2 = 0 And i = 1 Then
                 isAdd = True
             End If
 
@@ -250,10 +265,22 @@
             Else
                 hLength = target.CharsPerData + target.Sparator
                 If target.LengthPerData < source.LengthPerData Then
-                    hLength = hLength * source.LengthPerData / target.LengthPerData
+                    Dim isSourceContainsRedzone As Boolean = ((tb.SM.col_count Mod source.LengthPerData) = 0)
+                    Dim sourceIsInRedZone As Boolean = indexColSource = Math.Floor(tb.SM.col_count / source.LengthPerData)
+                    If sourceIsInRedZone Then
+                        hLength = hLength * source.LengthPerData / target.LengthPerData
+                        If isAdd Then
+                            If (res Mod charsPerRowTarget) + hLength > charsPerRowTarget Then
+                                hLength = charsPerRowTarget - (res Mod charsPerRowTarget)
+                            End If
+                        End If
+                    Else
+                        hLength = hLength * source.LengthPerData / target.LengthPerData
+                    End If
                 End If
             End If
 
+            If hLength > charsPerRow Then hLength = charsPerRow
             If i = 0 And Anchor > Caret Then
                 If isAdd Then res += hLength
             ElseIf i = 1 And Caret > Anchor Then
@@ -274,26 +301,13 @@
         SnapSelection(Item, transformer, effect)
     End Sub
     Friend Sub SnapSelection(ByVal Item As SelectionItem, ByVal transformer As ITransformer, ByVal effect As SnapEffect)
-        Dim transItem As SelectionItem = TransformItem(Item, transformer, transformer)
+        Dim transItem As SelectionItem = TransformItem(transformer, Item)
         If effect.HasFlag(SnapEffect.Anchor) Then
             Item.anc = transItem.anc
         End If
         If effect.HasFlag(SnapEffect.Caret) Then
             Item.car = transItem.car
-
-            Dim perData As Integer = transformer.CharsPerData + transformer.Sparator
-            Dim colFloor As Integer = Math.Floor(tb.SM.col_count / transformer.LengthPerData) * transformer.LengthPerData
-            Dim charsPerRow As Integer = (colFloor / transformer.LengthPerData * perData)
-            Dim charsWhitoutRedZonePerRow As Integer = (colFloor / transformer.LengthPerData * perData)
-            Dim redZoneLength As Integer = (tb.SM.col_count - colFloor) * 2
-            If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += transformer.Sparator
-            charsPerRow += redZoneLength
-
-            If Item.car Mod charsPerRow = 0 And Not Item.car = 0 And Item.car > Item.anc Then
-                Item.LF = True
-            Else
-                Item.LF = False
-            End If
+            Item.LF = transItem.LF
         End If
     End Sub
     Friend Function IsAnchor(ByVal position As Long) As Boolean
@@ -308,13 +322,33 @@
             Return position = sItem.car
         End If
     End Function
-    Friend Function IsOver(ByVal position As Long, ByVal source As ITransformer, ByVal target As ITransformer) As Boolean
-        Dim perData As Integer = source.CharsPerData + source.Sparator
-        Dim colFloor As Integer = Math.Floor(tb.SM.col_count / source.LengthPerData) * source.LengthPerData
-        Dim charsPerRow As Integer = (colFloor / source.LengthPerData * perData)
-        Dim charsWhitoutRedZonePerRow As Integer = (colFloor / source.LengthPerData * perData)
+    Friend Function IsOver(ByVal position As Long, ByVal TI As AdvancedTransformInfo) As Boolean
+        Dim Item As SelectionItem = Me.Items.Last
+        Dim Caret As Long = Item.car
+        If Item.LF Then Caret -= 1
+
+        Dim linePos As Long = Math.Floor(position / TI.CharsPerRow)
+        Dim line As Long = Math.Floor(Caret / TI.CharsPerRow)
+
+        If line = linePos Then
+            Dim pos As Integer = position Mod TI.CharsPerRow
+            Dim col As Integer = Caret Mod TI.CharsPerRow
+            Dim col_mod As Integer = Math.Floor(col / TI.PerData) * TI.PerData
+            Dim col_max As Integer = col_mod + TI.PerData
+            If col_max > TI.CharsPerRow Then col_max = TI.CharsPerRow
+
+            If col_mod <= pos And pos < col_max Then
+                Return True
+            End If
+        End If
+        Return False
+    End Function
+    Friend Function IsOver(ByVal position As Long, ByVal target As ITransformer) As Boolean
+        Dim perData As Integer = trans.CharsPerData + trans.Sparator
+        Dim colFloor As Integer = Math.Floor(tb.SM.col_count / trans.LengthPerData) * trans.LengthPerData
+        Dim charsPerRow As Integer = (colFloor / trans.LengthPerData * perData)
+        Dim charsWhitoutRedZonePerRow As Integer = (colFloor / trans.LengthPerData * perData)
         Dim redZoneLength As Integer = (tb.SM.col_count - colFloor) * 2
-        If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += source.Sparator
         charsPerRow += redZoneLength
 
         Dim charsPerRowSource As Integer = charsPerRow
@@ -325,7 +359,7 @@
         charsPerRow = (colFloor / target.LengthPerData * perData)
         charsWhitoutRedZonePerRow = (colFloor / target.LengthPerData * perData)
         redZoneLength = (tb.SM.col_count - colFloor) * 2
-        If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += target.Sparator
+        'If (tb.SM.col_count - colFloor) > 0 Then redZoneLength += target.Sparator
         charsPerRow += redZoneLength
 
         Dim charsPerRowTarget As Integer = charsPerRow
@@ -343,8 +377,8 @@
         Dim indexLineSource As Long = lineSource * tb.SM.col_count
 
         Dim indexCharSource As Long = Caret - lineSource * charsPerRowSource
-        Dim indexColSource As Long = Math.Floor(indexCharSource / (source.CharsPerData + source.Sparator))
-        Dim indexColTarget As Long = Math.Floor(indexColSource / target.LengthPerData * source.LengthPerData) * (target.CharsPerData + target.Sparator)
+        Dim indexColSource As Long = Math.Floor(indexCharSource / (trans.CharsPerData + trans.Sparator))
+        Dim indexColTarget As Long = Math.Floor(indexColSource / target.LengthPerData * trans.LengthPerData) * (target.CharsPerData + target.Sparator)
 
         Dim Caret2 As Long = linePosTarget + indexColTarget
 
@@ -353,25 +387,34 @@
         If Not redZoneLengthTarget = 0 Then
             targetIsInRedZone = indexColTarget >= redZoneLengthTarget
             If targetIsInRedZone Then
-                hLength = redZoneLengthTarget - target.Sparator
+                hLength = redZoneLengthTarget + target.Sparator
             Else
                 hLength = target.CharsPerData + target.Sparator
-                If target.LengthPerData < source.LengthPerData Then
-                    hLength = hLength * source.LengthPerData / target.LengthPerData
+                If target.LengthPerData < trans.LengthPerData Then
+                    hLength = hLength * trans.LengthPerData / target.LengthPerData
                 End If
             End If
             hLength -= target.Sparator
         Else
             hLength = target.CharsPerData + target.Sparator
-            If target.LengthPerData < source.LengthPerData Then
-                hLength = hLength * source.LengthPerData / target.LengthPerData
+            If target.LengthPerData < trans.LengthPerData Then
+                Dim isSourceContainsRedzone As Boolean = ((tb.SM.col_count Mod trans.LengthPerData) = 0)
+                Dim sourceIsInRedZone As Boolean = indexColSource = Math.Floor(tb.SM.col_count / trans.LengthPerData)
+                If sourceIsInRedZone Then
+                    hLength = hLength * trans.LengthPerData / target.LengthPerData
+                    If (Caret2 Mod charsPerRowTarget) + hLength > charsPerRowTarget Then
+                        hLength = charsPerRowTarget - (Caret2 Mod charsPerRowTarget)
+                    End If
+                Else
+                    hLength = hLength * trans.LengthPerData / target.LengthPerData
+                End If
             End If
             hLength -= target.Sparator
         End If
 
+        If hLength > charsPerRow Then hLength = charsPerRow
         Return Caret2 <= position And position < (Caret2 + hLength)
     End Function
-
     Public ReadOnly Property SelectionLength() As Long
         Get
             Dim totalSelection As Long = 0
@@ -388,16 +431,148 @@
     End Sub
     Friend bak As SelectionManager
     Friend Sub Backup()
-        bak = Me.Clone
+        If tb.SL Is Me Then
+            bak = Me.Clone
+        End If
     End Sub
     Friend Sub Invalidate()
-        tb.InvalidateSelection(bak)
+        If tb.SL Is Me And Not IsNothing(bak) Then
+            tb.InvalidateSelection(bak)
+        End If
     End Sub
+#End Region
+
+#Region "New"
+    Public Function CreateTransform(ByVal destTrans As ITransformer) As SelectionManager
+        Dim SM_t As New SelectionManager(tb, destTrans)
+
+        For Each i In Items
+            Dim item_t As SelectionItem = TransformItem(destTrans, i)
+            item_t.SM = SM_t
+            SM_t.itms.Add(item_t)
+        Next
+
+        Return SM_t
+    End Function
+
+    Public Function TransformItem(ByVal destTrans As ITransformer, ByVal Item As SelectionItem) As SelectionItem
+        Dim afterLength As Long = tb.bb.GetLength + tb.shift_val_pre
+        Dim tISource As AdvancedTransformInfo = Transformers.GetAdvancedTransformInfo(trans, tb.SM.col_count, afterLength)
+        Dim tIDest As AdvancedTransformInfo = Transformers.GetAdvancedTransformInfo(destTrans, tb.SM.col_count, afterLength)
+
+        Dim v As Long() = {Item.anc, Item.car}
+        Dim v_t(v.Length - 1) As Long
+
+        Dim c As Long = Me.SelectionLength
+        Dim LF As Boolean = Item.LF
+
+        For i As Integer = 0 To 1
+            Dim val As Long = v(i)
+            Dim line As Long = Math.Floor(val / tISource.CharsPerRow)
+            Dim col As Integer = val Mod tISource.CharsPerRow
+            If Not col Mod tISource.PerData = 0 And Not c = 0 Then
+                If i = 0 Then
+                    If Item.anc < Item.car Then
+                        col = Math.Floor(col / tISource.PerData) * tISource.PerData
+                    Else
+                        col = Math.Ceiling(col / tISource.PerData) * tISource.PerData
+                    End If
+                ElseIf i = 1 Then
+                    If Item.car > Item.anc Then
+                        col = Math.Ceiling(col / tISource.PerData) * tISource.PerData
+                    Else
+                        col = Math.Floor(col / tISource.PerData) * tISource.PerData
+                    End If
+                End If
+            End If
+            Dim col_b As Integer = Math.Floor(col / tISource.PerData)
+            Dim col_t As Integer = Math.Floor(col_b * tISource.Trans.LengthPerData / tIDest.Trans.LengthPerData) * tIDest.PerData
+            If col_t > tIDest.CharsPerRow Then
+                col_t = tIDest.CharsPerRow
+                LF = True
+            End If
+            Dim line_t As Long = line * tIDest.CharsPerRow
+            Dim val_t As Long = line_t + col_t
+
+            If val_t > tIDest.MaxAllCharsLength Then
+                val_t = tIDest.MaxAllCharsLength
+            End If
+
+            v_t(i) = val_t
+        Next
+
+        Dim Item_t As New SelectionItem
+        Item_t.anc = v_t(0)
+        Item_t.car = v_t(1)
+        Item_t.LF = LF
+
+        Return Item_t
+    End Function
+    Friend Function ArrangeSelection() As SelectionManager
+        Dim list2 As List(Of SelectionItem) = Nothing
+        Dim TI As AdvancedTransformInfo = Transformers.GetAdvancedTransformInfo(Me.trans, tb.SM.col_count, tb.bb.GetLength + tb.shift_val_pre)
+        Dim mySel As SelectionManager = Me.Clone
+
+        Do
+            Dim list1 As List(Of SelectionItem) = mySel.Items
+            list2 = New List(Of SelectionItem)
+            Dim c As Integer = 0
+            For Each i In list1
+                Dim col As Integer = i.SelectionStart Mod TI.CharsPerRow
+                Dim col_t As Integer = Math.Floor(col / TI.PerData) * TI.PerData
+                Dim col2 As Integer = (i.SelectionStart + i.SelectionLength) Mod TI.CharsPerRow
+                Dim col2_t As Integer = Math.Floor(col2 / TI.PerData) * TI.PerData
+
+                Dim a1 As Long = Math.Floor(i.SelectionStart / TI.CharsPerRow) * TI.CharsPerRow + col_t
+                Dim a2 As Long = Math.Floor((i.SelectionStart + i.SelectionLength) / TI.CharsPerRow) * TI.CharsPerRow + col2_t
+                Dim b1 As Long = 0
+                Dim b2 As Long = 0
+                Dim isIntersect As Boolean = False
+                Dim intersectWith As SelectionItem = Nothing
+
+                For Each i2 In list2
+                    Dim xcol As Integer = i2.SelectionStart Mod TI.CharsPerRow
+                    Dim xcol_t As Integer = Math.Floor(xcol / TI.PerData) * TI.PerData
+                    Dim xcol2 As Integer = (i2.SelectionStart + i2.SelectionLength) Mod TI.CharsPerRow
+                    Dim xcol2_t As Integer = Math.Floor(xcol2 / TI.PerData) * TI.PerData
+
+                    b1 = Math.Floor(i2.SelectionStart / TI.CharsPerRow) * TI.CharsPerRow + xcol_t
+                    b2 = Math.Floor((i2.SelectionStart + i2.SelectionLength) / TI.CharsPerRow) * TI.CharsPerRow + xcol2_t
+
+                    If Helper.IntersectsWith(a1, a2, b1, b2) Then
+                        isIntersect = True
+                        intersectWith = i2
+                        Exit For
+                    End If
+                Next
+
+                If isIntersect Then
+                    Dim str As Long = Math.Min(a1, b1)
+                    Dim snd As Long = Math.Min(a2, b2)
+                    intersectWith.anc = str
+                    intersectWith.car = snd
+                    c += 1
+                Else
+                    list2.Add(i)
+                End If
+            Next
+
+            If c = 0 Then Exit Do
+            list1 = list2
+        Loop
+
+        Dim SL2 As New SelectionManager(Me.tb, Me.trans)
+        SL2.itms.AddRange(list2)
+
+        Return SL2
+    End Function
+
+#End Region
 End Class
 Public Class SelectionItem
-    Friend anc As Long = 0
-    Friend car As Long = 0
-    Friend LF As Boolean = False
+    Friend anc As Long
+    Friend car As Long
+    Friend LF As Boolean
     Friend SM As SelectionManager
     Public Property Anchor As Long
         Get

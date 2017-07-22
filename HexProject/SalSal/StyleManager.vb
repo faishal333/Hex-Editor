@@ -2,6 +2,8 @@
 Imports System.Drawing
 
 Public Class StyleSet
+    Inherits BaseStyle
+    Friend tb As HexBox
 
     Friend txClr As Color
     Friend bkClr As Color
@@ -11,57 +13,65 @@ Public Class StyleSet
     Friend ovrbkClr As Color
     Friend ovrtx2Clr As Color
     Friend ovrbk2Clr As Color
+    Friend ovrtx3Clr As Color
+    Friend ovrbk3Clr As Color
     Friend offsettxClr As Color
     Friend offsetbkClr As Color
     Friend headtxClr As Color
     Friend headbkClr As Color
     Friend graytxClr As Color
+    Friend wrongtxClr As Color = Color.Red
+    Friend ubtxClr As Color = Color.Gray
+    Friend uetxClr As Color = Color.Blue
+    Friend lineColor As Color = SystemColors.ActiveBorder
+    Friend highLightLineColor As Color = Color.FromArgb(150, Color.LightGray)
+    Friend slider_normal As Color = SystemColors.ScrollBar
+    Friend slider_hot As Color = SystemColors.ControlLight
+    Friend slider_down As Color = SystemColors.ControlDark
+    Friend slider_border As Color = SystemColors.ScrollBar
+    Friend slider_back As Color = Nothing
 
     Friend fnt As Font
-    Friend LessFont As Font
-    Friend ovrMode As OverModes = OverModes.Color
-    Friend wMode As WriteMode = WriteMode.Over
-
-    Friend SF As New StringFormat(StringFormatFlags.NoWrap)
 
     Friend header_mode As HeaderMode = HeaderMode.Default
-    Friend offset_mode As OffsetMode = OffsetMode.Hex2
-    Friend hex_mode As Boolean = True
-    Friend text_mode As Boolean = True
-    Friend col_count As Integer = 8
-    Friend row_height As Integer = 0
-    Friend header_height As Integer = 0
+    Friend offset_mode As OffsetMode = OffsetMode.Hex4
+    Friend ovrMode As OverModes = OverModes.Color
+    Friend wMode As WriteMode = WriteMode.Overwrite
 
-    Friend all_xpad As Integer = 0
-    Friend all_ypad As Integer = 0
-    Friend header_ypad As Integer = 4
-    Friend content_ypad As Integer = 5
-    Friend offset_xpad As Integer = 10
-
-    Friend offsetBox_width As Integer = 0
-
-    Friend draw_border As Boolean = True
-    Friend lineColor As Color = SystemColors.ActiveBorder
-    Friend borderW As Integer = 1
-
-    Friend TSS As New List(Of TextStyle)
-
-    Friend highlightLine As Boolean = True
-    Friend highLightLineColor As Color = Color.FromArgb(150, Color.LightGray)
-    Friend Box As New List(Of BoxItem)
+    Friend draw_border As Boolean = False
     Friend AutoSnap As Boolean = True
-
-    Friend Shared Arial As New Font("Arial", 11, FontStyle.Regular)
-    Friend Shared Consolas As New Font("Consolas", 11, FontStyle.Regular)
-    Friend Shared CourierNew As New Font(FontFamily.GenericMonospace, 11, FontStyle.Regular)
-
     Friend usrpaint_head As Boolean = False
     Friend usrpaint_offset As Boolean = False
     Friend usrpaint_content As Boolean = False
     Friend hexSign As Boolean = True
+    Friend offsetLiteMode As Boolean = True
     Friend offsetAutoSize As Boolean = True
+    Friend highlightLine As Boolean = False
 
-    Friend tb As HexBox
+    Friend col_count As Integer = 8
+    Friend row_height As Integer = 0
+    Friend header_height As Integer = 0
+    Friend offset_width As Integer = 0
+    Friend all_padLeft As Integer = 0
+    Friend all_padTop As Integer = 0
+    Friend header_padTop As Integer = 5
+    Friend content_padTop As Integer = 5
+    Friend offset_padLeft As Integer = 10
+    Friend offset_wx As Integer = 10
+    Friend borderW As Integer = 1
+    Friend indicatorSize As Integer = 1
+
+    Friend hPatternBrush As IntPtr
+
+    Friend TSS As New List(Of TextStyle)
+    Friend Box As New List(Of BoxItem)
+
+    Friend Shared Arial As New Font("Arial", 10, FontStyle.Regular)
+    Friend Shared Consolas As New Font("Consolas", 10, FontStyle.Regular)
+    Friend Shared CourierNew As New Font(FontFamily.GenericMonospace, 10, FontStyle.Regular)
+
+    Friend Shared abcDatas As New List(Of FontData)
+
     Friend Sub New(ByVal tb As HexBox)
         Me.tb = tb
         txClr = SystemColors.WindowText
@@ -69,23 +79,22 @@ Public Class StyleSet
         seltxClr = SystemColors.Window
         selbkClr = SystemColors.Highlight   'Helper.Blend(SystemColors.ControlDark, BackColor, 0.3)
         ovrtxClr = SystemColors.WindowText
-        ovrbkClr = Helper.Blend(Color.White, Color.Yellow, 0.5)  'SystemColors.ActiveCaption       ' Color.FromArgb(255, 255 - SelectedBackColor.R, 255 - SelectedBackColor.G, 255 - SelectedBackColor.B)
+        ovrbkClr = Color.FromArgb(150, Color.Yellow)  'SystemColors.ActiveCaption       ' Color.FromArgb(255, 255 - SelectedBackColor.R, 255 - SelectedBackColor.G, 255 - SelectedBackColor.B)
         ovrtx2Clr = SystemColors.WindowText
         ovrbk2Clr = Color.LightBlue     ' Color.LightGray
-        graytxClr = Color.Black
+        ovrtx3Clr = Color.Red
+        ovrbk3Clr = Color.FromArgb(150, Color.White)     ' Color.LightGray
+        graytxClr = Color.White
 
         fnt = CourierNew
-        LessFont = New Font(fnt, 8)
 
         offsettxClr = txClr
         offsetbkClr = SystemColors.Control
         headtxClr = txClr
         headbkClr = SystemColors.Control
 
-        SF.Trimming = StringTrimming.None
-
         row_height = Helper.GetTextHeight(fnt)
-        header_height = row_height + header_ypad * 2 - 2
+        header_height = row_height + header_padTop * 2 - 2
 
         Dim cpr As Integer = offset_mode
         If offset_mode > 16 Then
@@ -112,7 +121,7 @@ Public Class StyleSet
         Next
 
         Dim fd As FontData = GetFontData(fnt)
-        offsetBox_width = Helper.GetTextWidth(fd.ABC, offsetS) + offset_xpad * 2 + 1
+        offset_width = Helper.GetTextWidthA(fd.ABC, offsetS) + offset_padLeft * 2 + 1
 
         Dim b As BoxItem = Nothing
 
@@ -122,14 +131,32 @@ Public Class StyleSet
         Box.Add(b)
 
         UpdateBoxes()
-    End Sub
 
+        Dim bmp As New Bitmap(offset_wx, 2)
+        Dim ax As Boolean = False
+        For y As Integer = 0 To bmp.Height - 1
+            For x As Integer = 0 To bmp.Width - 1
+                If Not ax Then
+                    bmp.SetPixel(x, y, offsetbkClr)
+                Else
+                    bmp.SetPixel(x, y, Color.Gray)
+                End If
+                ax = Not ax
+            Next
+            ax = Not ax
+        Next
+
+        Dim hbmp As IntPtr = bmp.GetHbitmap
+        hPatternBrush = GDI32.CreatePatternBrush(hbmp)
+
+    End Sub
     Friend Sub UpdateBoxes()
         For Each i In Me.Box
-            UpdateBox(i)
+            If i.az Then UpdateBox(i)
         Next
     End Sub
     Friend Sub UpdateBox(ByVal box As BoxItem)
+        If Not box.az Then Exit Sub
         Dim perData As Integer = box.trans.CharsPerData + box.trans.Sparator
         Dim colFloor As Integer = Math.Floor(col_count / box.trans.LengthPerData) * box.trans.LengthPerData
         Dim charsPerRow As Integer = (colFloor / box.trans.LengthPerData * perData)
@@ -150,16 +177,16 @@ Public Class StyleSet
             End If
         End If
         Dim fd As FontData = GetFontData(fnt)
-        box.w = Helper.GetTextWidth(fd.ABC, textS) + box.xpad
+        box.w = Helper.GetTextWidthA(fd.ABC, textS) + box.xpad * 2
 
     End Sub
 
     Friend Sub UpdateStyle()
         row_height = Helper.GetTextHeight(fnt)
-        header_height = row_height + header_ypad * 2 - 2
+        header_height = row_height + header_padTop * 2 - 2
 
         Dim cpr As Integer = offset_mode
-        If offsetAutoSize Then
+        If offsetLiteMode Then
             Dim drawAddressStart As Long = tb.vscroll_val * col_count
             Dim Tx As String = ""
             If offset_mode > 16 Then
@@ -216,19 +243,19 @@ Public Class StyleSet
             End If
         End If
 
-        Dim offsetS(cpr - 1) As Byte
+        If offsetAutoSize Then
+            Dim offsetS(cpr - 1) As Byte
 
-        For i As Integer = 0 To cpr - 1
-            offsetS(i) = 48
-        Next
+            For i As Integer = 0 To cpr - 1
+                offsetS(i) = 48
+            Next
 
-        Dim fd As FontData = GetFontData(fnt)
-        offsetBox_width = Helper.GetTextWidth(fd.ABC, offsetS) + offset_xpad * 2 + 1
+            Dim fd As FontData = GetFontData(fnt)
+            offset_width = Helper.GetTextWidthA(fd.ABC, offsetS) + offset_padLeft * 2 + 1
+        End If
 
         UpdateBoxes()
     End Sub
-
-    Friend Shared abcDatas As New List(Of FontData)
 
     Friend Shared Function GetFontData(ByVal Font As Font) As FontData
         If IsNothing(Font) Then Return Nothing
@@ -244,7 +271,7 @@ Public Class StyleSet
     End Function
 
 #Region "Public"
-    Public Property TextColor As Color
+    Public Overrides Property TextColor As Color
         Get
             Return txClr
         End Get
@@ -255,7 +282,7 @@ Public Class StyleSet
             End If
         End Set
     End Property
-    Public Property BackColor As Color
+    Public Overrides Property BackColor As Color
         Get
             Return bkClr
         End Get
@@ -288,7 +315,7 @@ Public Class StyleSet
             End If
         End Set
     End Property
-    Public Property HotTextColor As Color
+    Public Overrides Property HotTextColor As Color
         Get
             Return ovrtxClr
         End Get
@@ -299,7 +326,7 @@ Public Class StyleSet
             End If
         End Set
     End Property
-    Public Property HotBackColor As Color
+    Public Overrides Property HotBackColor As Color
         Get
             Return ovrbkClr
         End Get
@@ -310,7 +337,7 @@ Public Class StyleSet
             End If
         End Set
     End Property
-    Public Property HotTextColor2 As Color
+    Public Overrides Property HotTextColor2 As Color
         Get
             Return ovrtx2Clr
         End Get
@@ -321,13 +348,68 @@ Public Class StyleSet
             End If
         End Set
     End Property
-    Public Property HotBackColor2 As Color
+    Public Overrides Property HotBackColor2 As Color
         Get
             Return ovrbk2Clr
         End Get
         Set(value As Color)
             If Not ovrbk2Clr = value Then
                 ovrbk2Clr = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Overrides Property HotTextColor3 As Color
+        Get
+            Return ovrtx3Clr
+        End Get
+        Set(value As Color)
+            If Not ovrtx3Clr = value Then
+                ovrtx3Clr = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Overrides Property HotBackColor3 As Color
+        Get
+            Return ovrbk3Clr
+        End Get
+        Set(value As Color)
+            If Not ovrbk3Clr = value Then
+                ovrbk3Clr = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Overrides Property WrongTextColor As Color
+        Get
+            Return wrongtxClr
+        End Get
+        Set(value As Color)
+            If Not wrongtxClr = value Then
+                wrongtxClr = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Overrides Property UnAccessableTextColor As Color
+        Get
+            Return ubtxClr
+        End Get
+        Set(value As Color)
+            If Not ubtxClr = value Then
+                ubtxClr = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Overrides Property UnEditableTextColor As Color
+        Get
+            Return uetxClr
+        End Get
+        Set(value As Color)
+            If Not uetxClr = value Then
+                uetxClr = value
                 tb.Invalidate()
             End If
         End Set
@@ -414,7 +496,7 @@ Public Class StyleSet
             End If
         End Set
     End Property
-    Public Property Font As Font
+    Public Overrides Property Font As Font
         Get
             Return fnt
         End Get
@@ -427,7 +509,61 @@ Public Class StyleSet
             End If
         End Set
     End Property
-
+    Public Property SliderColor As Color
+        Get
+            Return slider_normal
+        End Get
+        Set(value As Color)
+            If Not slider_normal = value Then
+                slider_normal = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Property SliderBackColor As Color
+        Get
+            Return slider_back
+        End Get
+        Set(value As Color)
+            If Not slider_back = value Then
+                slider_back = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Property SliderOverColor As Color
+        Get
+            Return slider_hot
+        End Get
+        Set(value As Color)
+            If Not slider_hot = value Then
+                slider_hot = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Property SliderPressedColor As Color
+        Get
+            Return slider_down
+        End Get
+        Set(value As Color)
+            If Not slider_down = value Then
+                slider_down = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
+    Public Property SliderBorderColor As Color
+        Get
+            Return slider_border
+        End Get
+        Set(value As Color)
+            If Not slider_border = value Then
+                slider_border = value
+                tb.Invalidate()
+            End If
+        End Set
+    End Property
 #End Region
 #Region "Text Style"
     Public Sub AddTextStyle(ByVal ts As TextStyle)
@@ -440,9 +576,22 @@ Public Class StyleSet
         Dim sameIndex As Integer = -1
         Dim isIntersect As Boolean = False
         Dim intersectIndex As Integer = 0
+        Dim boxSame As Boolean = False
         For i As Integer = 0 To TSS.Count - 1
             tsa = TSS(i)
-            If ts.Position = tsa.Position And ts.Length = tsa.Length And ts.StyleTarget = tsa.StyleTarget Then
+            boxSame = False
+            If ts.StyleTarget.HasFlag(StyleTarget.SelectedContents) Then
+                If ts.BoxIndex.Count = tsa.BoxIndex.Count Then
+                    boxSame = True
+                    For Each i2 In ts.BoxIndex
+                        If Not tsa.BoxIndex.Contains(i2) Then
+                            boxSame = False
+                            Exit For
+                        End If
+                    Next
+                End If
+            End If
+            If ts.Position = tsa.Position And ts.Length = tsa.Length And ts.StyleTarget = tsa.StyleTarget And boxSame Then
                 isSame = True
                 sameIndex = i
             ElseIf ((ts.Position < (tsa.Position + tsa.Length)) AndAlso (tsa.Position < (ts.Position + ts.Length))) Then
@@ -493,7 +642,7 @@ Public Class StyleSet
 
         Dim box As BoxItem = Me.Box(boxIndex)
 
-        If IsNothing(Box.Style) Then
+        If IsNothing(box.Style) Then
             SMBackRGB = bkClr
             SMTextRGB = Helper.Blend(txClr, bkClr, txClr.A / 255)
             SMSelTextRGB = Helper.Blend(seltxClr, bkClr, seltxClr.A / 255)
@@ -508,7 +657,7 @@ Public Class StyleSet
             rSelS = selbkClr
             rFontS = Font
         Else
-            Dim stsSource As BaseStyle = Box.Style
+            Dim stsSource As BaseStyle = box.Style
             Dim sts As New BaseStyle
             If stsSource.BackColor.IsEmpty Then
                 sts.BackColor = bkClr
@@ -672,9 +821,8 @@ Public Class StyleSet
     Public Sub ClearTextStyles()
         TSS.Clear()
         tb.Invalidate()
-        tb.Update()
     End Sub
-    Public Function GetAllStyles() As TextStyle()
+    Public Function GetTextStyles() As TextStyle()
         Return TSS.ToArray
     End Function
     Public Sub ClearTextStyle(ByVal position As Long, ByVal length As Long, ByVal unit As PointUnit, ByVal target As StyleTarget, ByVal boxIndex As Integer())
@@ -689,7 +837,60 @@ Public Class StyleSet
             End If
         End If
         ts.IsOverride = True
-        OverrideTextStyle(ts)
+
+        Dim tsa As TextStyle = Nothing
+        Dim isSame As Boolean = False
+        Dim sameIndex As Integer = -1
+        Dim isIntersect As Boolean = False
+        Dim intersectIndex As Integer = 0
+        Dim boxSame As Boolean = False
+        For i As Integer = 0 To TSS.Count - 1
+            tsa = TSS(i)
+            boxSame = False
+            If ts.StyleTarget.HasFlag(StyleTarget.SelectedContents) Then
+                If ts.BoxIndex.Count = tsa.BoxIndex.Count Then
+                    boxSame = True
+                    For Each i2 In ts.BoxIndex
+                        If Not tsa.BoxIndex.Contains(i2) Then
+                            boxSame = False
+                            Exit For
+                        End If
+                    Next
+                End If
+            End If
+            If ts.Position = tsa.Position And ts.Length = tsa.Length And ts.StyleTarget = tsa.StyleTarget And boxSame Then
+                isSame = True
+                sameIndex = i
+            ElseIf ((ts.Position < (tsa.Position + tsa.Length)) AndAlso (tsa.Position < (ts.Position + ts.Length))) Then
+                isIntersect = True
+                intersectIndex = i
+            End If
+        Next
+
+        If isSame Then
+            If isIntersect And intersectIndex > sameIndex Then
+                TSS.Add(ts)
+            Else
+                TSS(sameIndex) = ts
+            End If
+        ElseIf isIntersect Then
+            TSS.Add(ts)
+        End If
+
+        tb.InvalidateStyle(ts)
+    End Sub
+
+    Public Sub SetBoxStyle(ByVal boxIndex As Integer, ByVal ts As BaseStyle)
+        Box(boxIndex).Style = ts
+    End Sub
+    Public Function GetBoxStyle(ByVal boxIndex As Integer) As BaseStyle
+        Return Box(boxIndex).Style
+    End Function
+    Public Function GetBoxStyle(ByVal box As BoxItem) As BaseStyle
+        Return box.Style
+    End Function
+    Public Sub SetBoxStyle(ByVal box As BoxItem, ByVal ts As BaseStyle)
+        box.Style = ts
     End Sub
 #End Region
 End Class
@@ -701,6 +902,7 @@ Public Class BoxItem
     Friend ix As Integer
     Friend tb As HexBox
     Friend ts As BaseStyle
+    Friend az As Boolean = True
     Public Property Style As BaseStyle
         Get
             Return ts
@@ -718,10 +920,8 @@ Public Class BoxItem
 
             If Not newFont Is oldFont Then
                 tb.SM.UpdateBox(Me)
-                tb.Invalidate()
-            Else
-                tb.InvalidateSelection()
             End If
+            tb.Invalidate()
         End Set
     End Property
     Public Property Mode As TransformMode
@@ -730,6 +930,9 @@ Public Class BoxItem
         End Get
         Set(value As TransformMode)
             trans = Transformers.Create(value)
+            If tb.FocussedBoxIndex = Me.Index Then
+                tb.SL = tb.SL.CreateTransform(trans)
+            End If
             tb.SM.UpdateBox(Me)
             tb.Invalidate()
             tb.Update()
@@ -741,6 +944,9 @@ Public Class BoxItem
         End Get
         Set(value As ITransformer)
             trans = value
+            If tb.FocussedBoxIndex = Me.Index Then
+                tb.SL = tb.SL.CreateTransform(trans)
+            End If
             tb.SM.UpdateBox(Me)
             tb.Invalidate()
             tb.Update()
@@ -765,12 +971,53 @@ Public Class BoxItem
                 Else
                     tb.SM.Box.Insert(value, Me)
                 End If
+
+                If tb.FocussedBoxIndex = oldIndex Then
+                    tb.SL = tb.SL.CreateTransform(tb.SelectedBox.trans)
+                End If
+
                 tb.Invalidate()
                 tb.Update()
             End If
         End Set
     End Property
-
+    Public Property Width As Integer
+        Get
+            Return w
+        End Get
+        Set(value As Integer)
+            If Not az Then
+                w = value
+                tb.Invalidate()
+                tb.Update()
+            End If
+        End Set
+    End Property
+    Public Property PaddingLeft As Integer
+        Get
+            Return xpad
+        End Get
+        Set(value As Integer)
+            If Not value = xpad Then
+                xpad = value
+                tb.Invalidate()
+                tb.Update()
+            End If
+        End Set
+    End Property
+    Public Property AutoSize As Boolean
+        Get
+            Return az
+        End Get
+        Set(value As Boolean)
+            az = value
+            If az Then
+                tb.SM.UpdateBox(Me)
+                tb.Invalidate()
+                tb.Update()
+            End If
+        End Set
+    End Property
     Friend Sub New(ByVal tb As HexBox)
         Me.tb = tb
     End Sub
@@ -789,11 +1036,13 @@ Friend Class FontData
     Public Font As Font
     Public ABC As GDI32.AbcFloat()
     Public hFont As IntPtr
+    Friend Sub New()
 
+    End Sub
     Public Sub New(ByVal font As Font)
         Me.Font = font
         Me.hFont = font.ToHfont
-        Me.ABC = Helper.GetABCWidths(hFont)
+        Me.ABC = Helper.GetABCWidthsW(hFont)
     End Sub
 End Class
 Public Class BaseStyle
@@ -805,7 +1054,12 @@ Public Class BaseStyle
     Public Overridable Property HotBackColor As Color
     Public Overridable Property HotTextColor2 As Color
     Public Overridable Property HotBackColor2 As Color
+    Public Overridable Property HotTextColor3 As Color
+    Public Overridable Property HotBackColor3 As Color
     Public Overridable Property GrayTextColor As Color
+    Public Overridable Property WrongTextColor As Color
+    Public Overridable Property UnAccessableTextColor As Color
+    Public Overridable Property UnEditableTextColor As Color
     Public Overridable Property Font As Font
 End Class
 Public Class TextStyle
@@ -873,7 +1127,7 @@ End Enum
 <Browsable(True)>
 Public Enum WriteMode As Integer
     Insert = 0
-    Over = 1
+    Overwrite = 1
 End Enum
 
 <Browsable(True)>

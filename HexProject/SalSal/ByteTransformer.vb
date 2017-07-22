@@ -11,6 +11,16 @@ Public Interface ITransformer
 
 End Interface
 
+Friend Class AdvancedTransformInfo
+    Public PerData As Integer
+    Public CharsPerRow As Integer
+    Public DataCount As Integer
+    Public colFloor As Integer
+    Public PartialCount As Integer
+    Public Trans As ITransformer
+    Public MaxAllCharsLength As Long
+
+End Class
 Public Class Transformers
     Public Shared Function Create(ByVal mode As TransformMode)
         Select Case mode
@@ -46,9 +56,41 @@ Public Class Transformers
                 Return New DoubleViewTransformer()
             Case TransformMode.UnicodeView
                 Return New UnicodeViewTransformer()
+            Case TransformMode.TextView
+                Return New TextViewTransformer()
+            Case TransformMode.TextWView
+                Return New TextWViewTransformer()
         End Select
 
         Return Nothing
+    End Function
+    Friend Shared Function GetAdvancedTransformInfo(ByVal trans As ITransformer, ByVal col_count As Integer, ByVal afterLength As Integer) As AdvancedTransformInfo
+        Dim ti As New AdvancedTransformInfo
+        ti.PerData = trans.CharsPerData + trans.Sparator
+        ti.DataCount = Math.Floor(col_count / trans.LengthPerData)
+        ti.colFloor = ti.DataCount * trans.LengthPerData
+        ti.CharsPerRow = (ti.DataCount * ti.PerData)
+        Dim charsLessPerRow As Integer = (ti.DataCount * ti.PerData)
+        ti.PartialCount = (col_count - ti.DataCount * trans.LengthPerData)
+        ti.CharsPerRow += ti.PartialCount * 2
+        ti.Trans = trans
+
+        Dim maxCharsLength As Long = Math.Floor(afterLength / col_count) * ti.CharsPerRow
+        Dim sisa As Integer = (afterLength Mod col_count)
+        If sisa = 0 Then
+            'maxCharsLength += ti.CharsPerRow
+        ElseIf sisa Mod trans.LengthPerData = 0 Then
+            maxCharsLength += sisa / trans.LengthPerData * ti.PerData
+        Else
+            maxCharsLength += Math.Floor(sisa / trans.LengthPerData) * ti.PerData
+
+            sisa = sisa Mod trans.LengthPerData
+            maxCharsLength += sisa * 2
+        End If
+
+        ti.MaxAllCharsLength = maxCharsLength
+
+        Return ti
     End Function
     Public Class CharViewTransformer
         Implements ITransformer
@@ -84,18 +126,8 @@ Public Class Transformers
             Return {Asc(text(0))}
         End Function
 
-        Friend Shared replaced_chars As Char() = {Chr(0), Chr(1), Chr(2), Chr(3), Chr(4), Chr(5), Chr(6), Chr(7), Chr(8), Chr(9), Chr(&HA), Chr(&HB), Chr(&HC), Chr(&HD), Chr(&HE), Chr(&HF),
-                                         Chr(&H10), Chr(&H11), Chr(&H12), Chr(&H13), Chr(&H14), Chr(&H15), Chr(&H16), Chr(&H17), Chr(&H18), Chr(&H19), Chr(&H10), Chr(&H1A), Chr(&H1B), Chr(&H1C), Chr(&H1D), Chr(&H1E), Chr(&H1F),
-                                        Chr(&H20), Chr(&H7F), Chr(&H81), Chr(&H8D), Chr(&H8F), Chr(&H90), Chr(&H98), Chr(&H9D), Chr(&HAD)}
-        Friend Shared Function CharReplace(ByVal tx As String) As String
-            For Each i In replaced_chars
-                tx = tx.Replace(i, ".")
-            Next
-            Return tx
-        End Function
-
         Public Function GetString(buffer() As Byte, index As Integer) As String Implements ITransformer.GetString
-            Return CharReplace(Chr(buffer(index)))
+            Return Chr(buffer(index))
         End Function
     End Class
     Public Class ByteViewTransformer
@@ -204,6 +236,7 @@ Public Class Transformers
         End Property
 
         Public Function GetBytes(text As String) As Byte() Implements ITransformer.GetBytes
+            text = text.Replace(" ", "")
             Return {"&H" & Mid(text, 1, 2)}
         End Function
 
@@ -664,18 +697,111 @@ Public Class Transformers
             Return {Asc(text(0))}
         End Function
 
-        Friend Shared replaced_chars As Char() = {Chr(0), Chr(1), Chr(2), Chr(3), Chr(4), Chr(5), Chr(6), Chr(7), Chr(8), Chr(9), Chr(&HA), Chr(&HB), Chr(&HC), Chr(&HD), Chr(&HE), Chr(&HF),
-                                         Chr(&H10), Chr(&H11), Chr(&H12), Chr(&H13), Chr(&H14), Chr(&H15), Chr(&H16), Chr(&H17), Chr(&H18), Chr(&H19), Chr(&H10), Chr(&H1A), Chr(&H1B), Chr(&H1C), Chr(&H1D), Chr(&H1E), Chr(&H1F),
-                                        Chr(&H20), Chr(&H7F), Chr(&H81), Chr(&H8D), Chr(&H8F), Chr(&H90), Chr(&H98), Chr(&H9D), Chr(&HAD)}
-        Friend Shared Function CharReplace(ByVal tx As String) As String
-            For Each i In replaced_chars
-                tx = tx.Replace(i, ".")
-            Next
-            Return tx
+        Public Function GetString(buffer() As Byte, index As Integer) As String Implements ITransformer.GetString
+            Dim c As String = ChrW(BitConverter.ToUInt16(buffer, index))
+            Return c
+        End Function
+    End Class
+    Public Class TextViewTransformer
+        Implements ITransformer
+
+        Friend cpd As Integer = 8
+        Friend lpd As Integer = 8
+        Friend spr As Integer = 1
+        Friend tmd As TransformMode = TransformMode.TextView
+
+        Public Property Length As Integer
+            Get
+                Return lpd
+            End Get
+            Set(value As Integer)
+                cpd = value
+                lpd = value
+            End Set
+        End Property
+        Public ReadOnly Property CharsPerData As Integer Implements ITransformer.CharsPerData
+            Get
+                Return cpd
+            End Get
+        End Property
+        Public ReadOnly Property LengthPerData As Integer Implements ITransformer.LengthPerData
+            Get
+                Return lpd
+            End Get
+        End Property
+        Public ReadOnly Property Mode As TransformMode Implements ITransformer.Mode
+            Get
+                Return tmd
+            End Get
+        End Property
+
+        Public ReadOnly Property Sparator As Integer Implements ITransformer.Sparator
+            Get
+                Return spr
+            End Get
+        End Property
+
+        Public Function GetBytes(text As String) As Byte() Implements ITransformer.GetBytes
+            Dim b As Byte() = Helper.ansi.GetBytes(text, 0, cpd)
+            If Not b.Length = cpd Then
+                ReDim Preserve b(cpd - 1)
+            End If
+            Return b
         End Function
 
         Public Function GetString(buffer() As Byte, index As Integer) As String Implements ITransformer.GetString
-            Return CharReplace(ChrW(buffer(index)))
+            Return Helper.ansi.GetString(buffer, index, cpd)
+        End Function
+    End Class
+    Public Class TextWViewTransformer
+        Implements ITransformer
+
+        Friend cpd As Integer = 4
+        Friend lpd As Integer = 8
+        Friend spr As Integer = 1
+        Friend tmd As TransformMode = TransformMode.TextWView
+
+        Public Property Length As Integer
+            Get
+                Return lpd
+            End Get
+            Set(value As Integer)
+                cpd = value
+                lpd = value * 2
+            End Set
+        End Property
+        Public ReadOnly Property CharsPerData As Integer Implements ITransformer.CharsPerData
+            Get
+                Return cpd
+            End Get
+        End Property
+        Public ReadOnly Property LengthPerData As Integer Implements ITransformer.LengthPerData
+            Get
+                Return lpd
+            End Get
+        End Property
+        Public ReadOnly Property Mode As TransformMode Implements ITransformer.Mode
+            Get
+                Return tmd
+            End Get
+        End Property
+
+        Public ReadOnly Property Sparator As Integer Implements ITransformer.Sparator
+            Get
+                Return spr
+            End Get
+        End Property
+
+        Public Function GetBytes(text As String) As Byte() Implements ITransformer.GetBytes
+            Dim b As Byte() = Helper.uni.GetBytes(text, 0, lpd)
+            If Not b.Length = lpd Then
+                ReDim Preserve b(lpd - 1)
+            End If
+            Return b
+        End Function
+
+        Public Function GetString(buffer() As Byte, index As Integer) As String Implements ITransformer.GetString
+            Return Helper.uni.GetString(buffer, index, lpd)
         End Function
     End Class
 End Class
@@ -701,4 +827,7 @@ Public Enum TransformMode As Integer
     BinaryView = 13
     FloatView = 14
     DoubleView = 15
+
+    TextView = 16
+    TextWView = 17
 End Enum

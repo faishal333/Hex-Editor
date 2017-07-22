@@ -65,9 +65,13 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SelectionDataObject.vb" />
     <Compile Include="ByteBuilder.vb" />
     <Compile Include="ByteTransformer.vb" />
     <Compile Include="GDI32.vb" />
+    <Compile Include="GotoDialog.vb">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Helper.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
@@ -93,6 +97,7 @@
     <Compile Include="HexBox.vb">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="AttributeByte.vb" />
     <Compile Include="UndoableManager.vb" />
     <Compile Include="USER32.vb" />
   </ItemGroup>

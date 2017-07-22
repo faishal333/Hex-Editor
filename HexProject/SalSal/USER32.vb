@@ -1,9 +1,83 @@
-﻿Imports System.Runtime.InteropServices
+﻿Imports System.Drawing
+Imports System.Runtime.InteropServices
 
 Public Class USER32
-    <DllImport("user32.dll")>
+    <DllImport("user32.dll", SetLastError:=True, CharSet:=CharSet.Auto)>
     Public Shared Function ShowScrollBar(ByVal hWnd As System.IntPtr, ByVal wBar As Integer, ByVal bShow As Boolean) As Boolean
     End Function
+
+    <DllImport("user32.dll", SetLastError:=True, CharSet:=CharSet.Auto)>
+    Public Shared Function SetForegroundWindow(ByVal hWnd As IntPtr) As Boolean
+    End Function
+
+    <DllImport("user32.dll", SetLastError:=True, CharSet:=CharSet.Auto)>
+    Public Shared Function CreatePopupMenu() As IntPtr
+    End Function
+    <DllImport("user32.dll", SetLastError:=True, CharSet:=CharSet.Auto)>
+    Public Shared Function CreateMenu() As IntPtr
+    End Function
+    <DllImport("user32.dll", CharSet:=CharSet.Auto)>
+    Public Shared Function AppendMenu(ByVal hMenu As IntPtr, ByVal uFlags As MenuFlags, ByVal uIDNewItem As Integer, ByVal lpNewItem As String) As Integer
+    End Function
+    <DllImport("User32.Dll", EntryPoint:="TrackPopupMenuEx")>
+    Public Shared Function TrackPopupMenuEx(ByVal hMenu As IntPtr, ByVal fuFlags As UInteger, ByVal x As Integer, ByVal y As Integer, ByVal hwnd As IntPtr, ByVal lptpm As IntPtr) As Integer
+    End Function
+    <DllImport("User32.Dll", EntryPoint:="InsertMenuA")>
+    Public Shared Function InsertMenu(ByVal hMenu As IntPtr, ByVal uPosition As Integer, ByVal uFlags As Integer, ByVal uIDNewItem As IntPtr, ByVal lpNewItem As String) As Integer
+    End Function
+    <DllImport("User32.Dll", EntryPoint:="InsertMenuItemA")>
+    Public Shared Function InsertMenuItem(ByVal hMenu As IntPtr, ByVal uItem As Integer, ByVal fByPosition As Boolean, ByRef lpmii As MENUITEMINFO) As Boolean
+    End Function
+
+    <DllImport("user32.dll", CharSet:=CharSet.Auto, SetLastError:=False)>
+    Public Shared Function GetSubMenu(ByVal hMenu As IntPtr, ByVal nPos As Integer) As IntPtr
+    End Function
+    Public Enum MenuFlags As Integer
+        MF_INSERT = &H0
+        MF_CHANGE = &H80
+        MF_APPEND = &H100
+        MF_DELETE = &H200
+        MF_REMOVE = &H1000
+        MF_BYCOMMAND = &H0
+        MF_BYPOSITION = &H400
+        MF_SEPARATOR = &H800
+        MF_ENABLED = &H0
+        MF_GRAYED = &H1
+        MF_DISABLED = &H2
+        MF_UNCHECKED = &H0
+        MF_CHECKED = &H8
+        MF_USECHECKBITMAPS = &H200
+        MF_STRING = &H0
+        MF_BITMAP = &H4
+        MF_OWNERDRAW = &H100
+        MF_POPUP = &H10
+        MF_MENUBARBREAK = &H20
+        MF_MENUBREAK = &H40
+        MF_UNHILITE = &H0
+        MF_HILITE = &H80
+        MF_DEFAULT = &H1000
+        MF_SYSMENU = &H2000
+        MF_HELP = &H4000
+        MF_RIGHTJUSTIFY = &H4000
+        MF_MOUSESELECT = &H8000
+    End Enum
+    Public Enum TrackPopupFlag As Integer
+        TPM_CENTERALIGN = &H4
+        TPM_LEFTALIGN = &H0
+        TPM_RIGHTALIGN = &H8
+        TPM_BOTTOMALIGN = &H20
+        TPM_TOPALIGN = &H0
+        TPM_VCENTERALIGN = &H10
+        TPM_NONOTIFY = &H80
+        TPM_RETURNCMD = &H100
+        TPM_LEFTBUTTON = &H0
+        TPM_RIGHTBUTTON = &H2
+        TPM_HORNEGANIMATION = &H800
+        TPM_HORPOSANIMATION = &H400
+        TPM_NOANIMATION = &H4000
+        TPM_VERNEGANIMATION = &H2000
+        TPM_VERPOSANIMATION = &H1000
+    End Enum
 
     <DllImport("kernel32.dll")>
     Public Shared Function GetLastError() As Integer
@@ -180,5 +254,60 @@ Public Class USER32
         ' destination by using the SRCINVERT flag.
     End Structure
 
+    <StructLayout(LayoutKind.Sequential)>
+    Public Structure MENUITEMINFO
+        Public cbSize As Integer
+        Public fMask As Integer
+        Public fType As Integer
+        Public fState As Integer
+        Public wID As Integer
+        Public hSubMenu As IntPtr
+        Public hbmpChecked As IntPtr
+        Public hbmpUnchecked As IntPtr
+        Public dwItemData As IntPtr
+        Public dwTypeData As String
+        Public cch As Integer
+        Public hbmpItem As IntPtr
+    End Structure
 
+    Public Enum MenuMasks As Integer
+        MIIM_STATE = &H1
+        MIIM_ID = &H2
+        MIIM_SUBMENU = &H4
+        MIIM_CHECKMARKS = &H8
+        MIIM_TYPE = &H10
+        MIIM_DATA = &H20
+        MIIM_STRING = &H40
+        MIIM_BITMAP = &H80
+        MIIM_FTYPE = &H100
+        MFT_STRING = MenuFlags.MF_STRING
+        MFT_BITMAP = MenuFlags.MF_BITMAP
+        MFT_MENUBARBREAK = MenuFlags.MF_MENUBARBREAK
+        MFT_MENUBREAK = MenuFlags.MF_MENUBREAK
+        MFT_OWNERDRAW = MenuFlags.MF_OWNERDRAW
+        MFT_RADIOCHECK = &H200
+        MFT_SEPARATOR = MenuFlags.MF_SEPARATOR
+        MFT_RIGHTORDER = &H2000
+        MFT_RIGHTJUSTIFY = MenuFlags.MF_RIGHTJUSTIFY
+
+    End Enum
+    Public Enum MenuStates As Integer
+
+        MFS_CHECKED = &H8
+
+        MFS_DEFAULT = &H1000
+
+        MFS_DISABLED = &H3
+
+        MFS_ENABLED = &H0
+
+        MFS_GRAYED = &H3
+
+        MFS_HILITE = &H80
+
+        MFS_UNCHECKED = &H0
+
+        MFS_UNHILITE = &H0
+
+    End Enum
 End Class

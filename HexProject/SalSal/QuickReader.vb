@@ -16,6 +16,11 @@
         ReDim Buffer(MaxLength - 1)
     End Sub
     Public Function Update(ByVal position As Long, ByVal length As Integer) As Integer
+        Dim afterLength As Long = bb.GetLength
+        If position + length > afterLength Then
+            length = afterLength - position
+            If length < 0 Then length = 0
+        End If
         Dim needUpdate As Boolean = False
         If Not (Me.Position <= position And position + length <= Me.Position + Me.Length) Then
             needUpdate = True
@@ -23,9 +28,10 @@
         If Me.UniqueSession = 0 OrElse Not Me.UniqueSession = bb.UniqueSession Then
             needUpdate = True
         End If
-        Dim afterLength As Long = bb.GetLength
+
         If position >= afterLength Then
-            ReDim Buffer(MaxLength - 1)
+            Me.Position = position
+            Me.Length = 0
             Return 0
         End If
 

@@ -9,6 +9,18 @@ Public Class GDI32
     Public Shared Function GetCharABCWidthsFloat(ByVal hDC As IntPtr, ByVal iFirst As Integer, ByVal iLast As Integer, <[In], Out> rgAbc As AbcFloat()) As Boolean
     End Function
 
+    <DllImport("gdi32.DLL", EntryPoint:="GetCharABCWidthsFloatW", SetLastError:=True)>
+    Public Shared Function GetCharABCWidthsFloatW(ByVal hDC As IntPtr, ByVal iFirst As Integer, ByVal iLast As Integer, <[In], Out> rgAbc As AbcFloat()) As Boolean
+    End Function
+
+    <DllImport("gdi32.DLL", EntryPoint:="GetCharWidthW", SetLastError:=True)>
+    Public Shared Function GetCharWidthW(ByVal hDC As IntPtr, ByVal iFirst As Integer, ByVal iLast As Integer, <Out> lpBuffer As Integer) As Boolean
+    End Function
+
+    <DllImport("gdi32.DLL", EntryPoint:="GetTextExtentPoint32W", SetLastError:=True)>
+    Public Shared Function GetTextExtentPoint32(ByVal hdc As IntPtr, ByVal lpString As String, ByVal c As Integer, ByRef lpSize As Size) As Boolean
+    End Function
+
     <DllImport("gdi32.DLL", EntryPoint:="DeleteObject", SetLastError:=True)>
     Public Shared Function DeleteObject(ByVal hObject As IntPtr) As Boolean
     End Function
@@ -18,6 +30,9 @@ Public Class GDI32
     End Function
     <DllImport("gdi32.DLL", EntryPoint:="TextOutW", SetLastError:=True)>
     Public Shared Function TextOutW(hDC As IntPtr, iXStart As Integer, iYStart As Integer, pwcStart As String, iLength As Integer) As Boolean
+    End Function
+    <DllImport("gdi32.DLL", EntryPoint:="TextOutW", SetLastError:=True)>
+    Public Shared Function TextOutW2(hDC As IntPtr, iXStart As Integer, iYStart As Integer, ByRef pwcStart As Byte, iLength As Integer) As Boolean
     End Function
 
     <DllImport("gdi32.DLL", EntryPoint:="ExtTextOutA", SetLastError:=True)>
@@ -59,6 +74,9 @@ Public Class GDI32
     End Function
     <DllImport("gdi32.dll", EntryPoint:="CreateSolidBrush", CharSet:=CharSet.Auto)>
     Public Shared Function CreateSolidBrush(crColor As Integer) As IntPtr
+    End Function
+    <DllImport("gdi32.dll", EntryPoint:="CreatePatternBrush", CharSet:=CharSet.Auto)>
+    Public Shared Function CreatePatternBrush(hbmp As IntPtr) As IntPtr
     End Function
     <DllImport("gdi32.dll", EntryPoint:="CreatePen", CharSet:=CharSet.Auto)>
     Public Shared Function CreatePen(fnPenStyle As PenStyle, nWidth As Integer, crColor As Integer) As IntPtr

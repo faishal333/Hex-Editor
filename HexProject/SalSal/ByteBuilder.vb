@@ -15,41 +15,24 @@ Public Class ByteBuilder
     Friend ActionMods As New List(Of ActionModified)
     Friend lastUpdateActionIndex As Integer
 
+    Friend lastLength As Long
+    Friend lastLengthSign As Integer
+    Friend eu As Boolean
+
     Friend WithEvents um As New UndoableManager
 
     Public Event Load(ByVal sender As Object, ByVal e As EventArgs)
     Public Event ByteChanged(ByVal sender As Object, ByVal e As ByteChangedEventArgs)
     Public Event LoadUndoableState(ByVal sender As Object, ByVal Item As UndoableByteBuilderEventArgs)
     Public Event NewUndoableState(ByVal sender As Object, ByVal Item As UndoableByteBuilderEventArgs)
-
-    Public ReadOnly Property BaseStream As IO.Stream
-        Get
-            Return source
-        End Get
-    End Property
-    Public ReadOnly Property BufferStream As IO.Stream
-        Get
-            Return store
-        End Get
-    End Property
-    Public ReadOnly Property Length As Long
-        Get
-            Return GetLength()
-        End Get
-    End Property
-    Public ReadOnly Property Undoable As UndoableManager
-        Get
-            Return um
-        End Get
-    End Property
     Public Sub New(ByVal stream As IO.Stream)
+        eu = True
+
         Me.Initialize(stream)
     End Sub
-
     Public Sub LoadStream(ByVal stream As IO.Stream)
         Me.Initialize(stream)
     End Sub
-
     Friend Sub Initialize(ByVal stream As IO.Stream)
         um.Clear()
         Me.Clear()
@@ -72,10 +55,30 @@ Public Class ByteBuilder
         ActionRaws.Add(baseAction)
         UniqueSession = act.Unique
 
-        AddUndoableState()
+        AddUndoableState("initialize", Nothing)
 
         RaiseEvent Load(Me, New EventArgs)
     End Sub
+    Public ReadOnly Property BaseStream As IO.Stream
+        Get
+            Return source
+        End Get
+    End Property
+    Public ReadOnly Property BufferStream As IO.Stream
+        Get
+            Return store
+        End Get
+    End Property
+    Public ReadOnly Property Length As Long
+        Get
+            Return GetLength()
+        End Get
+    End Property
+    Public ReadOnly Property Undoable As UndoableManager
+        Get
+            Return um
+        End Get
+    End Property
 
     Friend Sub Clear()
         ActionRaws.Clear()
@@ -98,8 +101,7 @@ Public Class ByteBuilder
     End Sub
 
     Friend Function GenerateUniqueID() As Integer
-        Dim id As Integer = BitConverter.ToInt32(Guid.NewGuid.ToByteArray, 0)
-        Return id
+        Return BitConverter.ToInt32(Guid.NewGuid.ToByteArray, 0)
     End Function
 
     Friend Sub _over(ByVal position As Long, ByVal data As Byte(), ByVal format As ModifyFormats)
@@ -112,7 +114,7 @@ Public Class ByteBuilder
         If position >= theMaxLength Then Exit Sub
 
         Dim act As New ActionRaw
-        act.Type = ActionTypes.Over
+        act.Type = ActionTypes.Overwrite
         act.Position = position
         act.Length = data.Length
         act.Unique = GenerateUniqueID()
@@ -140,7 +142,7 @@ Public Class ByteBuilder
         If position >= theMaxLength Then Exit Sub
 
         Dim act As New ActionRaw
-        act.Type = ActionTypes.Over
+        act.Type = ActionTypes.Overwrite
         act.Position = position
         act.Length = data.Length
         act.Unique = GenerateUniqueID()
@@ -227,18 +229,22 @@ Public Class ByteBuilder
     End Sub
 
     Public Function GetLength() As Long
-        Dim theMaxLength As Long = 0
+        Dim theMaxLength As Long = lastLength
 
-        For Each i In ActionRaws
-            Select Case i.Type
-                Case ActionTypes.Over
-                Case ActionTypes.Insert
-                    theMaxLength += i.Length
-                Case ActionTypes.Remove
-                    theMaxLength -= i.Length
-            End Select
-        Next
-
+        If Not lastLengthSign = ActionRaws.Last.Unique Then
+            theMaxLength = 0
+            For Each i In ActionRaws
+                Select Case i.Type
+                    Case ActionTypes.Overwrite
+                    Case ActionTypes.Insert
+                        theMaxLength += i.Length
+                    Case ActionTypes.Remove
+                        theMaxLength -= i.Length
+                End Select
+            Next
+            lastLengthSign = ActionRaws.Last.Unique
+            lastLength = theMaxLength
+        End If
         Return theMaxLength
     End Function
     Public Function Read(ByVal Buffer As Byte(), ByVal position As Long, ByVal offset As Long, ByVal length As Integer) As Integer
@@ -320,7 +326,7 @@ Public Class ByteBuilder
                 ac = ActionMods(ix)
                 If Not ac.Length = 0 Then
                     Select Case ac.Type
-                        Case ActionTypes.Over
+                        Case ActionTypes.Overwrite
                             seekOffset = 0
                         Case ActionTypes.Insert
                             seekOffset = ac.Length
@@ -350,7 +356,7 @@ Public Class ByteBuilder
                                         ac2.Data = ac2.Data
                                         ac2.Offset += ac3offset
                                     End If
-                                ElseIf ac.Type = ActionTypes.Over Then
+                                ElseIf ac.Type = ActionTypes.Overwrite Then
                                     Dim deleted As Long = (ac.Position + ac.Length) - ac2.Position
                                     If deleted > ac2.Length Then deleted = ac2.Length
                                     Dim ac3newLength As Long = ac2.Length - deleted
@@ -410,7 +416,7 @@ Public Class ByteBuilder
                                         iL += 1
                                         ix += 1
                                     End If
-                                ElseIf ac.Type = ActionTypes.Over Then
+                                ElseIf ac.Type = ActionTypes.Overwrite Then
                                     Dim ac2newLength As Long = ac.Position - ac2.Position
                                     Dim ac3newLength As Long = ac2.Length - ac2newLength - ac.Length
                                     Dim ac3position As Long = ac.Position + ac.Length
@@ -448,50 +454,49 @@ Public Class ByteBuilder
             needUpdate = True
         End If
 
-        Dim theLength As Long = 0
         If theMaxLength > Buffer.Length Then theMaxLength = Buffer.Length
-        If length > theMaxLength Then length = theMaxLength
+        If offset + length > theMaxLength Then length = theMaxLength - offset
 
+        Dim theLength As Long = 0
         For i As Integer = 0 To ActionMods.Count - 1
             ac = ActionMods(i)
-            If Not ac.Length = 0 Then
-                If ac.Type = ActionTypes.Remove Then
-                Else
-                    If position <= ac.Position And ac.Position < position + length Then
-                        Dim offsetd As Long = ac.Position - position
-                        Dim countd As Long = length
-                        If offsetd + countd >= ac.Length Then countd = ac.Length - offsetd
-                        ' If theLength + countd >= Buffer.Length Then countd = Buffer.Length - offsetd
-                        If countd < 0 Then countd = 0
+            If Not ac.Length = 0 And Not ac.Type = ActionTypes.Remove Then
+                If position <= ac.Position And ac.Position < position + length Then 'intersect right
+                    Dim count As Long = length
+                    Dim dOffset As Long = ac.Position - position
+                    count -= dOffset
+                    If count > ac.Length Then
+                        count = ac.Length
+                    End If
+                    If count < 0 Then count = 0
 
-                        If ac.IsStreamed And Not countd = 0 Then
-                            ac.SourceStream.Position = ac.StreamPosition + ac.Offset
-                            ac.SourceStream.Read(Buffer, offset + offsetd + theLength, countd)
-                        Else
-                            For i2 As Integer = 0 To countd - 1
-                                Buffer(i2 + offset + offsetd + theLength) = ac.Data(i2 + ac.Offset)
-                            Next
-                        End If
+                    If ac.IsStreamed Then
+                        ac.SourceStream.Position = ac.StreamPosition + ac.Offset
+                        Dim r As Integer = ac.SourceStream.Read(Buffer, offset + dOffset, count)
+                        theLength += r
+                    Else
+                        For i2 As Integer = 0 To count - 1
+                            Buffer(offset + dOffset + i2) = ac.Data(ac.Offset + i2)
+                        Next
+                        theLength += count
+                    End If
+                ElseIf ac.Position <= position And position < ac.Position + ac.Length Then 'intersect left
+                    Dim count As Long = length
+                    Dim dtOffset As Long = position - ac.Position
+                    If dtOffset + count > ac.Length Then
+                        count = ac.Length - dtOffset
+                    End If
+                    If count < 0 Then count = 0
 
-                        theLength += countd
-                        position += countd
-                    ElseIf (position <= (ac.Position + ac.Length) And (ac.Position + ac.Length) < (position + length)) Or (ac.Position < position And position + length < ac.Position + ac.Length) Then
-                        Dim offsetd As Long = position - ac.Position
-                        Dim countd As Long = length
-                        If offsetd + countd >= ac.Length Then countd = ac.Length - offsetd
-                        'If theLength + countd >= Buffer.Length Then countd = Buffer.Length - offsetd
-                        If countd < 0 Then countd = 0
-
-                        If ac.IsStreamed And Not countd = 0 Then
-                            ac.SourceStream.Position = ac.StreamPosition + offsetd + ac.Offset
-                            ac.SourceStream.Read(Buffer, offset + theLength, countd)
-                        Else
-                            For i2 As Integer = 0 To countd - 1
-                                Buffer(i2 + offset + theLength) = ac.Data(i2 + offsetd + ac.Offset)
-                            Next
-                        End If
-                        theLength += countd
-                        position += countd
+                    If ac.IsStreamed Then
+                        ac.SourceStream.Position = ac.StreamPosition + ac.Offset + dtOffset
+                        Dim r As Integer = ac.SourceStream.Read(Buffer, offset, count)
+                        theLength += r
+                    Else
+                        For i2 As Integer = 0 To count - 1
+                            Buffer(offset + i2) = ac.Data(ac.Offset + dtOffset + i2)
+                        Next
+                        theLength += count
                     End If
                 End If
             End If
@@ -581,7 +586,7 @@ Public Class ByteBuilder
                 ac = ActionMods(ix)
                 If Not ac.Length = 0 Then
                     Select Case ac.Type
-                        Case ActionTypes.Over
+                        Case ActionTypes.Overwrite
                             seekOffset = 0
                         Case ActionTypes.Insert
                             seekOffset = ac.Length
@@ -611,7 +616,7 @@ Public Class ByteBuilder
                                         ac2.Data = ac2.Data
                                         ac2.Offset += ac3offset
                                     End If
-                                ElseIf ac.Type = ActionTypes.Over Then
+                                ElseIf ac.Type = ActionTypes.Overwrite Then
                                     Dim deleted As Long = (ac.Position + ac.Length) - ac2.Position
                                     If deleted > ac2.Length Then deleted = ac2.Length
                                     Dim ac3newLength As Long = ac2.Length - deleted
@@ -671,7 +676,7 @@ Public Class ByteBuilder
                                         iL += 1
                                         ix += 1
                                     End If
-                                ElseIf ac.Type = ActionTypes.Over Then
+                                ElseIf ac.Type = ActionTypes.Overwrite Then
                                     Dim ac2newLength As Long = ac.Position - ac2.Position
                                     Dim ac3newLength As Long = ac2.Length - ac2newLength - ac.Length
                                     Dim ac3position As Long = ac.Position + ac.Length
@@ -712,43 +717,45 @@ Public Class ByteBuilder
         Dim theLength As Long = 0
         If theMaxLength > Buffer.Length Then theMaxLength = Buffer.Length
         If length > theMaxLength Then length = theMaxLength
-
         For i As Integer = 0 To ActionMods.Count - 1
             ac = ActionMods(i)
-            If Not ac.Length = 0 Then
-                If ac.Type = ActionTypes.Remove Then
-                Else
-                    If position <= ac.Position And ac.Position < position + length Then
-                        Dim offsetd As Long = ac.Position - position
-                        Dim countd As Long = theMaxLength - offsetd
-                        If countd >= ac.Length Then countd = ac.Length
-                        If countd < 0 Then countd = 0
+            If Not ac.Length = 0 And Not ac.Type = ActionTypes.Remove Then
+                If position <= ac.Position And ac.Position < position + length Then 'intersect right
+                    Dim count As Long = length
+                    Dim dOffset As Long = ac.Position - position
+                    count -= dOffset
+                    If count > ac.Length Then
+                        count = ac.Length
+                    End If
+                    If count < 0 Then count = 0
 
-                        If ac.IsStreamed And Not countd = 0 Then
-                            ac.SourceStream.Position = ac.StreamPosition + ac.Offset
-                            ac.SourceStream.Read(Buffer, offset + offsetd, countd)
-                        Else
-                            For i2 As Integer = 0 To countd - 1
-                                Buffer(i2 + offset + offsetd) = ac.Data(i2 + ac.Offset)
-                            Next
-                        End If
+                    If ac.IsStreamed Then
+                        ac.SourceStream.Position = ac.StreamPosition + ac.Offset
+                        Dim r As Integer = ac.SourceStream.Read(Buffer, offset + dOffset, count)
+                        theLength += r
+                    Else
+                        For i2 As Integer = 0 To count - 1
+                            Buffer(offset + dOffset + i2) = ac.Data(ac.Offset + i2)
+                        Next
+                        theLength += count
+                    End If
+                ElseIf ac.Position <= position And position < ac.Position + ac.Length Then 'intersect left
+                    Dim count As Long = length
+                    Dim dtOffset As Long = position - ac.Position
+                    If dtOffset + count > ac.Length Then
+                        count = ac.Length - dtOffset
+                    End If
+                    If count < 0 Then count = 0
 
-                        theLength += countd
-                    ElseIf (position <= (ac.Position + ac.Length) And (ac.Position + ac.Length) < (position + length)) Or (ac.Position < position And position + length < ac.Position + ac.Length) Then
-                        Dim offsetd As Long = position - ac.Position
-                        Dim countd As Long = theMaxLength - offsetd
-                        If offsetd + countd >= ac.Length Then countd = ac.Length - offsetd
-                        If countd < 0 Then countd = 0
-
-                        If ac.IsStreamed And Not countd = 0 Then
-                            ac.SourceStream.Position = ac.StreamPosition + offsetd + ac.Offset
-                            ac.SourceStream.Read(Buffer, offset, countd)
-                        Else
-                            For i2 As Integer = 0 To countd - 1
-                                Buffer(i2 + offset) = ac.Data(i2 + offsetd + ac.Offset)
-                            Next
-                        End If
-                        theLength += countd
+                    If ac.IsStreamed Then
+                        ac.SourceStream.Position = ac.StreamPosition + ac.Offset + dtOffset
+                        Dim r As Integer = ac.SourceStream.Read(Buffer, offset, count)
+                        theLength += r
+                    Else
+                        For i2 As Integer = 0 To count - 1
+                            Buffer(offset + i2) = ac.Data(ac.Offset + dtOffset + i2)
+                        Next
+                        theLength += count
                     End If
                 End If
             End If
@@ -782,7 +789,7 @@ Public Class ByteBuilder
             Me._over(position, data, format)
             theWriteLength = length
 
-            If format.EnableUpdateEventHandler Then bc = New ByteChangedEventArgs(position, theWriteLength, ActionTypes.Over)
+            If format.EnableUpdateEventHandler Then bc = New ByteChangedEventArgs(position, theWriteLength, ActionTypes.Overwrite)
         ElseIf position <= theMaxLength And theMaxLength < position + length Then
             Dim overCount As Integer = theMaxLength - position
 
@@ -803,7 +810,7 @@ Public Class ByteBuilder
             Me._insert(position + overCount, data2, format)
             theWriteLength = length
 
-            If format.EnableUpdateEventHandler Then bc = New ByteChangedEventArgs(position, theWriteLength, ActionTypes.Over Or ActionTypes.Insert)
+            If format.EnableUpdateEventHandler Then bc = New ByteChangedEventArgs(position, theWriteLength, ActionTypes.Overwrite Or ActionTypes.Insert)
         Else
             Dim dbuffLen As Integer = UShort.MaxValue
             Dim dbuff() As Byte = Nothing
@@ -828,18 +835,18 @@ Public Class ByteBuilder
             Me._insert(position, data2, format)
             theWriteLength = length
 
-            If format.EnableUpdateEventHandler Then bc = New ByteChangedEventArgs(position, theWriteLength, ActionTypes.Over Or ActionTypes.Insert)
+            If format.EnableUpdateEventHandler Then bc = New ByteChangedEventArgs(position, theWriteLength, ActionTypes.Overwrite Or ActionTypes.Insert)
         End If
 
-        AddUndoableState(format.UndoableData)
+        If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
         If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(0, GetLength, ActionTypes.Insert))
         Return theWriteLength
     End Function
-    Public Sub Over(ByVal position As Long, ByVal data As Byte())
-        Me.Over(position, data, DefaultModifyFormat)
+    Public Sub Overwrite(ByVal position As Long, ByVal data As Byte())
+        Me.Overwrite(position, data, DefaultModifyFormat)
     End Sub
-    Public Sub Over(ByVal position As Long, ByVal data As Byte(), ByVal format As ModifyFormats)
+    Public Sub Overwrite(ByVal position As Long, ByVal data As Byte(), ByVal format As ModifyFormats)
         If IsNothing(format) Then
             format = DefaultModifyFormat
         End If
@@ -853,14 +860,14 @@ Public Class ByteBuilder
             dataLen = afterLen - position
         End If
 
-        AddUndoableState(format.UndoableData)
+        If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
-        If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, dataLen, ActionTypes.Over))
+        If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, dataLen, ActionTypes.Overwrite))
     End Sub
-    Public Sub Over(ByVal position As Long, ByVal data As ByteStreamSource)
-        Me.Over(position, data, DefaultModifyFormat)
+    Public Sub Overwrite(ByVal position As Long, ByVal data As ByteStreamSource)
+        Me.Overwrite(position, data, DefaultModifyFormat)
     End Sub
-    Public Sub Over(ByVal position As Long, ByVal data As ByteStreamSource, ByVal format As ModifyFormats)
+    Public Sub Overwrite(ByVal position As Long, ByVal data As ByteStreamSource, ByVal format As ModifyFormats)
         If IsNothing(format) Then
             format = DefaultModifyFormat
         End If
@@ -879,9 +886,9 @@ Public Class ByteBuilder
             dataLen = afterLen - position
         End If
 
-        AddUndoableState(format.UndoableData)
+        If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
-        If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, dataLen, ActionTypes.Over))
+        If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, dataLen, ActionTypes.Overwrite))
     End Sub
     Public Sub Insert(ByVal position As Long, ByVal data As Byte())
         Me.Insert(position, data, DefaultModifyFormat)
@@ -893,7 +900,7 @@ Public Class ByteBuilder
 
         _insert(position, data, format)
 
-        AddUndoableState(format.UndoableData)
+        If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
         If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, data.Length, ActionTypes.Insert))
     End Sub
@@ -912,7 +919,7 @@ Public Class ByteBuilder
 
         _insert(position, data, format)
 
-        AddUndoableState(format.UndoableData)
+        If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
         If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, data.Length, ActionTypes.Insert))
     End Sub
@@ -932,7 +939,7 @@ Public Class ByteBuilder
             length = afterLen - position
         End If
 
-        AddUndoableState(format.UndoableData)
+        If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
         If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, length, ActionTypes.Remove))
     End Sub
@@ -947,7 +954,7 @@ Public Class ByteBuilder
         Dim position As Long = GetLength()
         _insert(position, data, format)
 
-        AddUndoableState(format.UndoableData)
+        If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
         If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, data.Length, ActionTypes.Insert))
     End Sub
@@ -967,7 +974,7 @@ Public Class ByteBuilder
         Dim position As Long = GetLength()
         _insert(position, data, format)
 
-        AddUndoableState(format.UndoableData)
+        If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
         If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(position, data.Length, ActionTypes.Insert))
     End Sub
@@ -1002,7 +1009,7 @@ Public Class ByteBuilder
             Dim len As Long = afterLength - newLength
             _delete(newLength, len, format)
 
-            AddUndoableState(format.UndoableData)
+            If format.RecordUndoable Then AddUndoableState(format.UndoableName, format.UndoableData)
 
             If format.EnableUpdateEventHandler Then RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(newLength, len, ActionTypes.Remove))
         End If
@@ -1034,7 +1041,7 @@ Public Class ByteBuilder
 
         Dim reWrite As Boolean = False
         For Each i In ActionRaws
-            If Not i.Type = ActionTypes.Over Then
+            If Not i.Type = ActionTypes.Overwrite Then
                 reWrite = True
                 Exit For
             End If
@@ -1122,6 +1129,7 @@ Public Class ByteBuilder
     End Sub
 
     Friend Sub ReverseOldActions()
+        If Not eu Then Exit Sub
         Dim clonedActions As New List(Of ActionRaw)
         Dim act As ActionRaw = Nothing
         Dim act2 As ActionRaw = Nothing
@@ -1148,7 +1156,7 @@ Public Class ByteBuilder
         For Each i In clonedActions
             act2 = i
             Select Case act2.Type
-                Case ActionTypes.Over
+                Case ActionTypes.Overwrite
                     Dim BufferBytes(act2.Length - 1) As Byte
                     Dim rlen As Integer = Read2(BufferBytes, act2.Position, 0, BufferBytes.Length, ActionRaws, a)
 
@@ -1194,8 +1202,8 @@ Public Class ByteBuilder
 
         If Not clonedActions.Count = 0 Then
             clonedActions.Reverse()
-
-            For Each i As ByteUndoableItem In um.States
+            Dim Items As UndoableItem() = um.Items
+            For Each i As ByteUndoableItem In Items
                 If i.ActionRaws.Count = 0 Then
                     Throw New Exception
                 Else
@@ -1223,37 +1231,64 @@ Public Class ByteBuilder
 #End Region
 
 #Region "Undoable"
-    Friend Sub AddUndoableState(Optional ByVal data As Object = Nothing)
+    Public Property EnableUndoable As Boolean
+        Get
+            Return eu
+        End Get
+        Set(value As Boolean)
+            eu = value
+            If Not eu Then
+                Undoable.Clear()
+            End If
+        End Set
+    End Property
+    Friend Sub AddUndoableState()
+        AddUndoableState("", Nothing)
+    End Sub
+    Friend Sub AddUndoableState(ByVal Name As String, ByVal additionalData As Object)
+        If Not eu Then Exit Sub
         Dim ui As New ByteUndoableItem
         ui.ActionRaws = New List(Of ActionRaw)
         ui.ActionRaws.AddRange(ActionRaws)
-        ui.Data = data
-        um.NewState(ui)
+        ui.Data = additionalData
+        ui.Name = Name
+        um.AppendState(ui)
 
         RaiseEvent NewUndoableState(Me, New UndoableByteBuilderEventArgs(ui))
     End Sub
     Friend Sub um_loadState(ByVal sender As Object, ByVal e As UndoableEventArgs) Handles um.Load
-        Dim item As ByteUndoableItem = e.Item
-        ActionRaws.Clear()
-        ActionMods.Clear()
-        lastUpdateActionIndex = 0
-        Dim act As New ActionRaw
-        act.Type = ActionTypes.Insert
-        act.Position = 0
-        act.Length = source.Length
-        act.Unique = GenerateUniqueID()
-        act.IsStreamed = True
-        act.StreamPosition = 0
-        act.SourceStream = source
+        Dim item As ByteUndoableItem = TryCast(e.Item, ByteUndoableItem)
+        If Not IsNothing(item) Then
+            ActionRaws.Clear()
+            ActionMods.Clear()
+            lastUpdateActionIndex = 0
 
-        baseAction = act
-        ActionRaws.Add(act)
-        ActionRaws.AddRange(item.ActionRaws)
+            If Not item.ActionRaws.Count = 0 Then
+                baseAction = item.ActionRaws.First
+                UniqueSession = 0
+                ActionRaws.AddRange(item.ActionRaws)
+            Else
+                Dim act As New ActionRaw
+                act.Type = ActionTypes.Insert
+                act.Position = 0
+                act.Length = source.Length
+                act.Unique = GenerateUniqueID()
+                act.IsStreamed = True
+                act.StreamPosition = 0
+                act.SourceStream = source
 
-        UniqueSession = act.Unique
+                baseAction = act
+                ActionRaws.Add(act)
+                ActionRaws.AddRange(item.ActionRaws)
+                UniqueSession = act.Unique
+            End If
 
-        RaiseEvent LoadUndoableState(Me, New UndoableByteBuilderEventArgs(e.Item))
-        RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(0, GetLength, 0))
+            RaiseEvent LoadUndoableState(Me, New UndoableByteBuilderEventArgs(e.Item))
+            RaiseEvent ByteChanged(Me, New ByteChangedEventArgs(0, GetLength, 0))
+        Else
+            RaiseEvent LoadUndoableState(Me, New UndoableByteBuilderEventArgs(e.Item))
+        End If
+
     End Sub
 
 #End Region
@@ -1408,7 +1443,7 @@ Public Class ByteBuilder
         ' Do not change this code.  Put cleanup code in Dispose(disposing As Boolean) above.
         Dispose(True)
         ' TODO: uncomment the following line if Finalize() is overridden above.
-        ' GC.SuppressFinalize(Me)
+        GC.SuppressFinalize(Me)
     End Sub
 #End Region
 
@@ -1417,20 +1452,28 @@ End Class
 Public Class ModifyFormats
     Public Property DataStore As DataStores
     Public Property UndoableData As Object
+    Public Property UndoableName As String
     Public Property EnableUpdateEventHandler As Boolean
     Public Property DirectCopy As Boolean
+    Public Property RecordUndoable As Boolean
     Public Sub New()
         Me.DataStore = DataStores.Memory
         Me.EnableUpdateEventHandler = True
+        Me.RecordUndoable = True
+        Me.UndoableName = ""
     End Sub
     Public Sub New(DataStore As DataStores)
         Me.DataStore = DataStore
         Me.EnableUpdateEventHandler = True
+        Me.RecordUndoable = True
+        Me.UndoableName = ""
     End Sub
     Public Sub New(DataStore As DataStores, UndoableData As Object)
         Me.DataStore = DataStore
         Me.UndoableData = UndoableData
         Me.EnableUpdateEventHandler = True
+        Me.RecordUndoable = True
+        Me.UndoableName = ""
     End Sub
 End Class
 
@@ -1459,7 +1502,7 @@ Friend Class ActionModified
     Public Original As ActionRaw
 End Class
 
-Friend Class ByteUndoableItem
+Public Class ByteUndoableItem
     Inherits UndoableItem
     Friend ActionRaws As New List(Of ActionRaw)
 End Class
@@ -1501,8 +1544,9 @@ Public Class ByteStreamSource
         Me.Length = length
     End Sub
 End Class
+
 Public Enum ActionTypes As Integer
-    Over = 1
+    Overwrite = 1
     Insert = 2
     Remove = 4
 End Enum

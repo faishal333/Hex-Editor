@@ -1,10 +1,12 @@
 ﻿Imports System.IO
+Imports System.Runtime.InteropServices
 Imports System.Text
 Imports SalSal
 
 Public Class Form1
     Dim ansi As System.Text.Encoding = System.Text.Encoding.Default
     Dim ts As New BaseStyle
+    Dim ts2 As New BaseStyle
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         CheckBox1.Checked = TransformBox1.AutoSnap
@@ -17,20 +19,21 @@ Public Class Form1
         ComboBox2.SelectedItem = "Hex"
         ComboBox3.SelectedItem = "8"
 
-        TransformBox1.ExtraWidth = Panel1.Width + Panel2.Width + 20
+        TransformBox1.ExtraWidth = Panel1.Width + Panel2.Width
+        'TransformBox1.Styles.BackColor = SystemColors.Control
 
         Dim clr As Color = TransformBox1.Styles.HighlightBackColor
         ts.HightlightBackColor = Color.DimGray
-
         For Each i In TransformBox1.BoxItems
             i.Style = ts
         Next
-        TransformBox1.SelectedBox.Style = Nothing
+        TransformBox1.SelectedBox.Style = ts2
 
         TransformBox1.ShowInvalidateArea = False
         TransformBox1.MultiSelection = True
+        TransformBox1.Collumn = 7
+        LoadFile("C:\Users\Faishal\Documents\Visual Studio 2015\Projects\HexProject\HexProject\bin\Debug\test.txt")
 
-        'TransformBox1.Styles.Font = New Font("Courier New", 15, FontStyle.Regular)
     End Sub
 
     Private Sub CheckBox1_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox1.CheckedChanged
@@ -95,15 +98,19 @@ Public Class Form1
                 TransformBox1.ViewMode = SalSal.TransformMode.CharView
             Case "Char (Unicode)"
                 TransformBox1.ViewMode = SalSal.TransformMode.UnicodeView
+            Case "Text"
+                TransformBox1.ViewMode = SalSal.TransformMode.TextView
+            Case "TextW"
+                TransformBox1.ViewMode = SalSal.TransformMode.TextWView
         End Select
     End Sub
 
     Private Sub ComboBox2_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBox2.SelectedIndexChanged
         Select Case ComboBox2.SelectedItem
             Case "Hex"
-                TransformBox1.OffsetType = SalSal.OffsetMode.Hex8
+                TransformBox1.OffsetType = SalSal.OffsetMode.Hex4
             Case "Decimal"
-                TransformBox1.OffsetType = SalSal.OffsetMode.Bytes8
+                TransformBox1.OffsetType = SalSal.OffsetMode.Bytes4
         End Select
     End Sub
 
@@ -126,76 +133,53 @@ Public Class Form1
         Dim fod As New OpenFileDialog()
         fod.Filter = "All Files|*.*"
         If fod.ShowDialog(Me) = DialogResult.OK Then
-            Dim bb As SalSal.ByteBuilder = TransformBox1.ByteBuilder
-            Dim base As IO.Stream = bb.BaseStream
-            Dim fs As IO.FileStream = fod.OpenFile
-            bb.LoadStream(fs)
-            base.Close()
-            TextBox1.Text = fod.FileName
+            LoadFile(fod.FileName)
+        End If
+    End Sub
+    Friend Sub LoadFile(ByVal path As String)
+        Dim bb As SalSal.ByteBuilder = TransformBox1.ByteBuilder
+        Dim base As IO.Stream = bb.BaseStream
+        Dim fs As IO.FileStream = New IO.FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)
+        bb.LoadStream(fs)
+        base.Close()
+        TextBox1.Text = path
 
-            Label6.Text = SalSal.Helper.GetSizeText(fs.Length)
-            RefreshStatus()
+        Label6.Text = SalSal.Helper.GetSizeText(fs.Length)
+        RefreshStatus()
+    End Sub
+
+    Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
+
+    End Sub
+    Dim hf As IntPtr = 0
+    Private Sub TransformBox1_GDI32Paint(sender As Object, e As GDI32PaintEventArgs) Handles TransformBox1.GDI32Paint
+        If CheckBox6.Checked Then
+            If hf = 0 Then
+                hf = TransformBox1.Styles.Font.ToHfont
+            End If
+
+            Dim bw As Integer = 0
+            For Each box In TransformBox1.BoxItems
+                Dim trans As ITransformer = box.Transformer
+                Dim x As Integer = TransformBox1.OffsetWidth + box.PaddingLeft + e.Translate.X + bw
+                x -= Math.Floor(Helper.GetTextWidth(hf, "".PadRight(trans.Sparator)) / 2)
+                Dim c As Integer = TransformBox1.Collumn - 1
+                For i As Integer = 0 To c - 4 Step 4
+                    Dim w As Single = Helper.GetTextWidth(hf, "".PadRight((trans.CharsPerData + trans.Sparator) / trans.LengthPerData * 4))
+                    Helper.FillRectangle(e.hDC, New Rectangle(x + w, 0, 1, Me.Height), Color.Yellow)
+                    x += w
+                Next
+                bw += box.Width
+            Next
         End If
     End Sub
 
-
-    Public Class myCustomTransformer
-        Implements ITransformer
-
-        Public ReadOnly Property CharsPerData As Integer Implements ITransformer.CharsPerData
-            Get
-                Return 8
-            End Get
-        End Property
-
-        Public ReadOnly Property LengthPerData As Integer Implements ITransformer.LengthPerData
-            Get
-                Return 4
-            End Get
-        End Property
-
-        Public ReadOnly Property Mode As TransformMode Implements ITransformer.Mode
-            Get
-                Return -1
-            End Get
-        End Property
-
-        Public ReadOnly Property Sparator As Integer Implements ITransformer.Sparator
-            Get
-                Return 1
-            End Get
-        End Property
-
-        Public Function GetBytes(text As String) As Byte() Implements ITransformer.GetBytes
-            Throw New NotImplementedException()
-        End Function
-
-        Public Function GetString(buffer() As Byte, index As Integer) As String Implements ITransformer.GetString
-            Dim clrInt As String = Hex(BitConverter.ToInt32(buffer, index))
-            Return clrInt
-        End Function
-    End Class
-    Dim sw As New Stopwatch
-    Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
-        Dim s As Integer = 5000
-        Dim pr As Single = (sw.ElapsedMilliseconds Mod s) / s
-        Dim ts As New TextStyle
-        ts.TextColor = Helper.Rainbow(pr)
-        ts.HightlightTextColor = ts.TextColor
-        ts.HightlightBackColor = Color.Purple
-        ts.Position = 10
-        ts.Length = 4
-        ts.Unit = PointUnit.Byte
-        ts.StyleTarget = StyleTarget.AllContents
-        'TransformBox1.SetTextStyle(ts)
-    End Sub
-
     Private Sub ToolStripStatusLabel1_Click(sender As Object, e As EventArgs) Handles ToolStripStatusLabel1.Click
-        If TransformBox1.WriteMode = WriteMode.Over Then
+        If TransformBox1.WriteMode = WriteMode.Overwrite Then
             TransformBox1.WriteMode = WriteMode.Insert
             ToolStripStatusLabel1.Text = "INS"
         Else
-            TransformBox1.WriteMode = WriteMode.Over
+            TransformBox1.WriteMode = WriteMode.Overwrite
             ToolStripStatusLabel1.Text = "OVR"
         End If
     End Sub
@@ -249,7 +233,7 @@ Public Class Form1
             For Each i In TransformBox1.BoxItems
                 i.Style = ts
             Next
-            TransformBox1.SelectedBox.Style = Nothing
+            TransformBox1.BoxItems(e.NewBoxIndex).Style = ts2
         End If
         Dim tsx As BaseStyle = TransformBox1.Styles.GetTextStyle(e.NewSelection.Curent.Caret, TransformBox1.SelectedBoxIndex, PointUnit.Char)
         Dim textColor As Color = TransformBox1.Styles.TextColor
@@ -275,16 +259,20 @@ Public Class Form1
         End If
         Button7.BackColor = textColor
         Button6.BackColor = backColor
+
     End Sub
     Dim colaps As Boolean
     Private Sub Button4_Click(sender As Object, e As EventArgs) Handles Button4.Click
         If colaps Then
             Button4.Text = ">"
             Panel1.Visible = True
+            TransformBox1.ExtraWidth = Panel1.Width + Panel2.Width
         Else
             Button4.Text = "<"
             Panel1.Visible = False
+            TransformBox1.ExtraWidth = Panel2.Width
         End If
+
         colaps = Not colaps
     End Sub
 
@@ -303,10 +291,12 @@ Public Class Form1
         s.HighlightTextColor = SystemColors.Window
         s.HighlighRowColor = Color.FromArgb(150, Color.LightGray)
 
-        s.HotBackColor = Color.Yellow
+        s.HotBackColor = Color.FromArgb(150, Color.Yellow)
         s.HotTextColor = SystemColors.WindowText
         s.HotBackColor2 = Color.LightBlue
         s.HotTextColor2 = SystemColors.WindowText
+        s.HotBackColor3 = Color.FromArgb(150, Color.White)
+        s.HotTextColor3 = Color.Red
 
         s.OffsetBackColor = SystemColors.Control
         s.OffsetTextColor = SystemColors.WindowText
@@ -314,6 +304,10 @@ Public Class Form1
         s.CollumnHeaderTextColor = s.OffsetTextColor
 
         s.BorderColor = SystemColors.ActiveBorder
+
+        s.SliderBorderColor = SystemColors.ScrollBar
+        s.SliderPressedColor = SystemColors.ControlDark
+
 
         Dim clr As Color = TransformBox1.Styles.HighlightBackColor
         ts.HightlightBackColor = Color.DimGray
@@ -332,8 +326,10 @@ Public Class Form1
 
         s.HotBackColor = Color.FromArgb(&HFF3D6C0E)
         s.HotTextColor = s.TextColor
-        s.HotBackColor2 = Color.FromArgb(&HFF113D6F)
+        s.HotBackColor2 = Color.FromArgb(&HFF686868)
         s.HotTextColor2 = s.TextColor
+        s.HotBackColor3 = Color.FromArgb(30, Color.White)
+        s.HotTextColor3 = Color.Orange
 
         s.OffsetBackColor = Color.FromArgb(&HFF333333)
         s.OffsetTextColor = Color.DodgerBlue
@@ -341,6 +337,9 @@ Public Class Form1
         s.CollumnHeaderTextColor = s.OffsetTextColor
 
         s.BorderColor = Color.FromArgb(&HFF626262)
+
+        s.SliderBorderColor = s.BorderColor
+        s.SliderPressedColor = s.OffsetTextColor
 
         Dim clr As Color = TransformBox1.Styles.HighlightBackColor
         ts.HightlightBackColor = Color.FromArgb(clr.A, Helper.Blend(Color.Red, clr, 0.5))
@@ -381,7 +380,7 @@ Public Class Form1
 
             For Each i In sl.Items
                 Dim ts As New TextStyle
-                ts.BackColor = cd.Color
+                ts.BackColor = Color.FromArgb(150, cd.Color)
                 ts.Position = i.SelectionStart
                 ts.Length = i.SelectionLength
                 ts.Unit = PointUnit.Char
@@ -406,5 +405,17 @@ Public Class Form1
             TransformBox1.Styles.ClearTextStyle(i.SelectionStart, i.SelectionLength, PointUnit.Char, StyleTarget.SelectedContents, {TransformBox1.SelectedBoxIndex})
         Next
 
+    End Sub
+
+    Private Sub CheckBox6_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox6.CheckedChanged
+        TransformBox1.Invalidate()
+    End Sub
+
+    Private Sub CheckBox7_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox7.CheckedChanged
+        TransformBox1.ForceHotFind = CheckBox7.Checked
+    End Sub
+
+    Private Sub CheckBox8_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox8.CheckedChanged
+        TransformBox1.ShowShiftSlider = CheckBox8.Checked
     End Sub
 End Class
