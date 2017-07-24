@@ -47,6 +47,8 @@ Public Class StyleSet
     Friend offsetLiteMode As Boolean = True
     Friend offsetAutoSize As Boolean = True
     Friend highlightLine As Boolean = False
+    Friend FullHighlightLine As Boolean = True
+    Friend AutoCloseStream As Boolean = True
 
     Friend col_count As Integer = 8
     Friend row_height As Integer = 0

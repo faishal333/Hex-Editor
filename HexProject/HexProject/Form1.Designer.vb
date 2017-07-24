@@ -33,7 +33,7 @@ Partial Class Form1
         Me.ToolStripStatusLabel1 = New System.Windows.Forms.ToolStripStatusLabel()
         Me.ContextMenuStrip1 = New System.Windows.Forms.ContextMenuStrip(Me.components)
         Me.TestToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.TransformBox1 = New SalSal.HexBox()
+        Me.HexBox1 = New SalSal.HexBox()
         Me.Panel2 = New System.Windows.Forms.Panel()
         Me.Button4 = New System.Windows.Forms.Button()
         Me.Panel1 = New System.Windows.Forms.Panel()
@@ -68,7 +68,7 @@ Partial Class Form1
         Me.CheckBox1 = New System.Windows.Forms.CheckBox()
         Me.StatusStrip1.SuspendLayout()
         Me.ContextMenuStrip1.SuspendLayout()
-        Me.TransformBox1.SuspendLayout()
+        Me.HexBox1.SuspendLayout()
         Me.Panel2.SuspendLayout()
         Me.Panel1.SuspendLayout()
         Me.SuspendLayout()
@@ -131,48 +131,50 @@ Partial Class Form1
         Me.TestToolStripMenuItem.Size = New System.Drawing.Size(95, 22)
         Me.TestToolStripMenuItem.Text = "Test"
         '
-        'TransformBox1
+        'HexBox1
         '
-        Me.TransformBox1.AllowDrop = True
-        Me.TransformBox1.AutoScroll = True
-        Me.TransformBox1.AutoSnap = True
-        Me.TransformBox1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
-        Me.TransformBox1.Collumn = 8
-        Me.TransformBox1.CollumnHeaderMode = SalSal.HeaderMode.[Default]
-        Me.TransformBox1.CollumnHeaderUserPaint = False
-        Me.TransformBox1.ContentUserPaint = False
-        Me.TransformBox1.Controls.Add(Me.Panel2)
-        Me.TransformBox1.Controls.Add(Me.Panel1)
-        Me.TransformBox1.Cursor = System.Windows.Forms.Cursors.IBeam
-        Me.TransformBox1.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.TransformBox1.EnableContextMenu = True
-        Me.TransformBox1.EnableGotoDialog = True
-        Me.TransformBox1.EnableHotFind = True
-        Me.TransformBox1.ExtraWidth = 0
-        Me.TransformBox1.ForceHotFind = False
-        Me.TransformBox1.HighlightCurrentLine = True
-        Me.TransformBox1.Location = New System.Drawing.Point(0, 0)
-        Me.TransformBox1.MultiSelection = True
-        Me.TransformBox1.Name = "TransformBox1"
-        Me.TransformBox1.OffsetAutoSize = True
-        Me.TransformBox1.OffsetHexSign = True
-        Me.TransformBox1.OffsetLiteMode = True
-        Me.TransformBox1.OffsetType = SalSal.OffsetMode.Hex2
-        Me.TransformBox1.OffsetUserPaint = False
-        Me.TransformBox1.OffsetWidth = 45
-        Me.TransformBox1.ReadOnly = False
-        Me.TransformBox1.SelectedBoxIndex = 0
-        Me.TransformBox1.SelectedTransfomer = Int16ViewTransformer1
-        Me.TransformBox1.SelectionPower = False
-        Me.TransformBox1.Shift = CType(0, Long)
-        Me.TransformBox1.ShowBorder = True
-        Me.TransformBox1.ShowInvalidateArea = False
-        Me.TransformBox1.ShowShiftSlider = False
-        Me.TransformBox1.Size = New System.Drawing.Size(661, 368)
-        Me.TransformBox1.TabIndex = 0
-        Me.TransformBox1.UnAceessableSymbol = Global.Microsoft.VisualBasic.ChrW(63)
-        Me.TransformBox1.ViewMode = SalSal.TransformMode.Int16View
-        Me.TransformBox1.WriteMode = SalSal.WriteMode.Overwrite
+        Me.HexBox1.AllowDrop = True
+        Me.HexBox1.AutoScroll = True
+        Me.HexBox1.AutoSnap = True
+        Me.HexBox1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
+        Me.HexBox1.Collumn = 8
+        Me.HexBox1.CollumnHeaderMode = SalSal.HeaderMode.[Default]
+        Me.HexBox1.CollumnHeaderUserPaint = False
+        Me.HexBox1.ContentUserPaint = False
+        Me.HexBox1.Controls.Add(Me.Panel2)
+        Me.HexBox1.Controls.Add(Me.Panel1)
+        Me.HexBox1.CopyMode = SalSal.CopyModes.SelectedContent
+        Me.HexBox1.Cursor = System.Windows.Forms.Cursors.IBeam
+        Me.HexBox1.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.HexBox1.EnableContextMenu = True
+        Me.HexBox1.EnableGotoDialog = True
+        Me.HexBox1.EnableHotFind = True
+        Me.HexBox1.ExtraWidth = 0
+        Me.HexBox1.ForceHotFind = False
+        Me.HexBox1.FullHighLightLine = False
+        Me.HexBox1.HighlightCurrentLine = True
+        Me.HexBox1.Location = New System.Drawing.Point(0, 0)
+        Me.HexBox1.MultiSelection = True
+        Me.HexBox1.Name = "HexBox1"
+        Me.HexBox1.OffsetAutoSize = True
+        Me.HexBox1.OffsetHexSign = True
+        Me.HexBox1.OffsetLiteMode = True
+        Me.HexBox1.OffsetType = SalSal.OffsetMode.Hex2
+        Me.HexBox1.OffsetUserPaint = False
+        Me.HexBox1.OffsetWidth = 45
+        Me.HexBox1.ReadOnly = True
+        Me.HexBox1.SelectedBoxIndex = 0
+        Me.HexBox1.SelectedTransfomer = Int16ViewTransformer1
+        Me.HexBox1.SelectionPower = False
+        Me.HexBox1.Shift = CType(0, Long)
+        Me.HexBox1.ShowBorder = False
+        Me.HexBox1.ShowInvalidateArea = False
+        Me.HexBox1.ShowShiftSlider = False
+        Me.HexBox1.Size = New System.Drawing.Size(661, 368)
+        Me.HexBox1.TabIndex = 0
+        Me.HexBox1.UnAceessableSymbol = Global.Microsoft.VisualBasic.ChrW(63)
+        Me.HexBox1.ViewMode = SalSal.TransformMode.Int16View
+        Me.HexBox1.WriteMode = SalSal.WriteMode.Overwrite
         '
         'Panel2
         '
@@ -517,7 +519,7 @@ Partial Class Form1
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(661, 392)
-        Me.Controls.Add(Me.TransformBox1)
+        Me.Controls.Add(Me.HexBox1)
         Me.Controls.Add(Me.StatusStrip1)
         Me.Name = "Form1"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
@@ -525,7 +527,7 @@ Partial Class Form1
         Me.StatusStrip1.ResumeLayout(False)
         Me.StatusStrip1.PerformLayout()
         Me.ContextMenuStrip1.ResumeLayout(False)
-        Me.TransformBox1.ResumeLayout(False)
+        Me.HexBox1.ResumeLayout(False)
         Me.Panel2.ResumeLayout(False)
         Me.Panel1.ResumeLayout(False)
         Me.Panel1.PerformLayout()
@@ -534,7 +536,7 @@ Partial Class Form1
 
     End Sub
 
-    Friend WithEvents TransformBox1 As SalSal.HexBox
+    Friend WithEvents HexBox1 As SalSal.HexBox
     Friend WithEvents Panel1 As Panel
     Friend WithEvents CheckBox4 As CheckBox
     Friend WithEvents CheckBox3 As CheckBox

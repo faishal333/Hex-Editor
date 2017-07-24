@@ -64,7 +64,20 @@ Public Class HexBox
     Public Event SelectionChanged(ByVal sender As Object, ByVal e As HexBoxSelectionEventArgs)
     Public Event GDI32Paint(ByVal sender As Object, ByVal e As GDI32PaintEventArgs)
     Public Event ContentPaint(ByVal sender As Object, ByVal e As ContentPaintEventArgs)
+    Public Event StreamLoaded(ByVal sender As Object, ByVal e As ContentPaintEventArgs)
+    Public Event Saving(ByVal sender As Object, ByVal e As ProgressionEventArgs)
 
+    Public Class LoadStreamEventArgs
+        Inherits EventArgs
+        Public ReadOnly Property OldStream As IO.Stream
+        Public ReadOnly Property NewStream As IO.Stream
+        Public ReadOnly Property AutoCloseOld As Boolean
+        Public Sub New(ByVal OldStream As IO.Stream, ByVal NewStream As IO.Stream, ByVal AutoCloseOld As Boolean)
+            Me.OldStream = OldStream
+            Me.NewStream = NewStream
+            Me.AutoCloseOld = AutoCloseOld
+        End Sub
+    End Class
     Public Sub New()
 
         ' This call is required by the designer.
@@ -152,7 +165,7 @@ Public Class HexBox
         RM.size = e.ClipRectangle.Size
         RM.AfterLength = bb.GetLength + shift_val_pre
         RM.WContent = GetContentWidth()
-        RM.A = vscroll_val * SM.col_count
+        RM.A = vscroll_val * SM.col_count - shift_val_pre
         Dim rl As Integer = QR.Update(RM.A, ShowedLength)
 
         InitializeHotFind()
@@ -437,7 +450,7 @@ Public Class HexBox
             End If
             A = Math.Floor(Caret / cpr) * SM.col_count
         End If
-        A += shift_val_pre
+        A -= shift_val_pre
         Dim caretColIndex As Integer = Math.Floor((sItem2.Caret Mod cpr) / (sourceBox.trans.CharsPerData + sourceBox.trans.Sparator))
         Dim blendClr As Integer = Helper.GetRGB(Helper.Blend(SM.highLightLineColor, SM.headbkClr, SM.highLightLineColor.A / 255))
         For boxIndex As Integer = 0 To SM.Box.Count - 1
@@ -643,7 +656,7 @@ Public Class HexBox
 
         rect.Height = SM.row_height
 
-        Dim drawAddressStart As Long = Me.ShowedStart + shift_val
+        Dim drawAddressStart As Long = Me.ShowedStart - shift_val_pre
         Dim drawAddressCount As Integer = Me.ShowedLength
 
         Dim Tx As String = ""
@@ -688,10 +701,20 @@ Public Class HexBox
                 For i As Integer = 0 To ShowedRowCount - 1
                     Dim adr As Long = drawAddressStart + i * SM.col_count
                     Tx = Hex(adr)
-                    If Tx.Length > lmax Then
+                    If Tx.Length > lmax And Not adr < 0 Then
                         lmax = Tx.Length
                     End If
                 Next
+                If lmax = 0 Then
+                    For i As Integer = 0 To ShowedRowCount - 1
+                        Dim adr As Long = Me.ShowedStart + i * SM.col_count
+                        Tx = Hex(adr)
+                        If Tx.Length > lmax Then
+                            lmax = Tx.Length
+                        End If
+                    Next
+                End If
+
                 cpr = lmax
                 If SM.hexSign Then
                     cpr += 1
@@ -737,7 +760,7 @@ Public Class HexBox
             nMaps(i2) = New RenderChar
         Next
 
-        drawAddressStart -= shift_val
+        drawAddressStart -= shift_val_pre
         For i As Integer = 0 To ShowedRowCount - 1
             If e.IsVisible(rect) Then
                 N = (vscroll_val + i) * SM.col_count
@@ -970,7 +993,8 @@ Public Class HexBox
         Dim rX As Single
         Dim SL As SelectionManager
         Dim isIndicator As Boolean
-
+        Dim highLightY As Integer
+        Dim drawMoreHighLight As Boolean
         For boxIndex As Integer = 0 To SM.Box.Count - 1
             rect.Y = bY
             box = SM.Box(boxIndex)
@@ -1010,6 +1034,8 @@ Public Class HexBox
 
                 If isHighLight Then
                     Helper.FillRectangle(hDC, New Rectangle(rect.X, rect.Y, box.w, SM.row_height), rb.SMBackBlendRGB)
+                    highLightY = rect.Y
+                    drawMoreHighLight = True
                 End If
 
                 Dim rectX As New Rectangle
@@ -1080,7 +1106,7 @@ Public Class HexBox
                             Dim sItem As SelectionItem = SL.Curent
 
                             For i As Integer = 0 To rb.CharsPerRow - 1
-                                Idx = (e.A + y * SM.col_count) / SM.col_count * rb.CharsPerRow + i
+                                Idx = (e.A + shift_val_pre + y * SM.col_count) / SM.col_count * rb.CharsPerRow + i
                                 rMap = rMaps(i)
                                 fd = GetFontData(rMap.Font)
                                 subTx = Mid(Tx, i + 1, 1)
@@ -1134,7 +1160,7 @@ Public Class HexBox
                         Dim h As Integer = 0
                         Dim IsOvered As Boolean = False
                         For i As Integer = 0 To rb.CharsPerRow - 1
-                            Idx = (e.A + y * SM.col_count) / SM.col_count * rb.CharsPerRow + i
+                            Idx = (e.A + shift_val_pre + y * SM.col_count) / SM.col_count * rb.CharsPerRow + i
                             rMap = rMaps(i)
                             fd = GetFontData(rMap.Font)
                             w = Helper.GetTextWidth(fd.ABC, Mid(Tx, i + 1, 1))
@@ -1254,6 +1280,11 @@ Public Class HexBox
             rect.X += box.w
         Next
         GDI32.RestoreDC(hDC, hState)
+        If drawMoreHighLight And SM.FullHighlightLine Then
+            Dim clr As Integer = Helper.GetRGB(Helper.Blend(SM.highLightLineColor, SM.bkClr, SM.highLightLineColor.A / 255))
+            Dim w As Integer = Math.Max(MyRect.Width, rect.Width)
+            Helper.FillRectangle(hDC, New Rectangle(rect.X, highLightY, w, SM.row_height), clr)
+        End If
         GDI32.DeleteObject(hRgn)
     End Sub
     Friend Sub RenderBorder(e As RenderParam)
@@ -1460,6 +1491,12 @@ Public Class HexBox
         Next
     End Sub
 
+    Friend Function MinusBytes(ByVal b As Byte(), ByVal offset As Long) As Byte()
+        Dim c As Integer = (-offset) Mod SM.col_count
+        Dim newB(b.Length + c - 1) As Byte
+        b.CopyTo(newB, c)
+        Return newB
+    End Function
     Friend Function GetRowText(ByVal line As Long, ByVal trans As ITransformer, ByVal replaced As Boolean) As String
         Return GetRowText(QR, line, trans, replaced)
     End Function
@@ -1487,10 +1524,12 @@ Public Class HexBox
         Dim isUB As Boolean
         Dim subTx As String = ""
         Dim firstTrans As Boolean = SM.Box(0).trans Is trans
+        Dim modShift As Long = Math.Floor(shift_val_pre / trans.LengthPerData) * trans.LengthPerData
+        Dim QRByt As Byte()
 
         For i As Integer = 0 To SM.col_count - 1 Step trans.LengthPerData
             thePos = lineIndex + i
-            If thePos < shift_val_pre Then
+            If thePos < modShift Then
                 subTx = "".PadRight(perData)
                 Tx &= subTx
             Else
@@ -1506,6 +1545,13 @@ Public Class HexBox
                     dataLen = 0
                 ElseIf Idx < QR.Length And QR.Length < Idx + trans.LengthPerData Then
                     dataLen = QR.Length - Idx
+                End If
+
+                If Idx < 0 Then
+                    QRByt = MinusBytes(QR.Buffer, Idx)
+                    Idx = ((-Idx) Mod SM.col_count)
+                Else
+                    QRByt = QR.Buffer
                 End If
 
                 isWrong = False
@@ -1529,9 +1575,9 @@ Public Class HexBox
                         subTx = Mid(wrItem.Text, 1, perData)
                     Else
                         If replaced Then
-                            subTx = ReplaceChars(trans.GetString(QR.Buffer, Idx))
+                            subTx = ReplaceChars(trans.GetString(QRByt, Idx))
                         Else
-                            subTx = trans.GetString(QR.Buffer, Idx)
+                            subTx = trans.GetString(QRByt, Idx)
                         End If
                     End If
                 ElseIf dataLen = 0 Then
@@ -1545,7 +1591,7 @@ Public Class HexBox
                         subTx = Mid(wrItem.Text, 1, perData)
                     Else
                         For i2 As Integer = 0 To dataLen - 1
-                            subTx &= Helper.Hex2(QR.Buffer(Idx + i2))
+                            subTx &= Helper.Hex2(QRByt(Idx + i2))
                         Next
                     End If
                 End If
@@ -1946,7 +1992,7 @@ Public Class HexBox
                         End If
                     Else
                         Idx = line * TI.CharsPerRow
-                        Idx += Math.Floor(Iy / sourceTrans.LengthPerData) * sourceTrans.LengthPerData * (trans.CharsPerData + trans.Sparator)
+                        Idx += Math.Floor((Math.Floor(Iy / sourceTrans.LengthPerData) * sourceTrans.LengthPerData) / trans.LengthPerData) * (trans.CharsPerData + trans.Sparator)
                         If SL.IsOver(Idx, TI) Then
                             Select Case True
                                 Case isUB
@@ -2263,9 +2309,6 @@ Public Class HexBox
 
                 rX = 0
 
-                If boxIndex = 1 Then
-                    Dim hh = 4
-                End If
                 If FocussedBoxIndex = boxIndex And Not (SM.wMode = WriteMode.Overwrite And SL.SelectionLength = 0) Then
                     rX = -1
                     Dim px As Integer = 0
@@ -2510,12 +2553,12 @@ Public Class HexBox
     End Sub
     Private Sub TransformBox_MouseUp(sender As Object, e As MouseEventArgs) Handles MyBase.MouseUp
         If isDown Then
+            Dim bakItem As SelectionItem = SL.Curent.Clone
             If Not SL.SelectionLength = 0 Then
                 'dontSnap = False
                 Dim rl As Integer = QR.Update(vscroll_val * SM.col_count, ShowedLength)
                 If SM.AutoSnap Or LCtrlEnabled Then
                     Dim bakSL As SelectionManager = Me.SL.Clone
-                    Dim bakItem As SelectionItem = SL.Curent.Clone
                     If dontSnap Then
                         dontSnap = False
                     Else
@@ -2526,9 +2569,6 @@ Public Class HexBox
                     item.anc = bakItem.car
                     item.car = bakItem.car
                     item.LF = bakItem.LF
-                    If shift_val = SM.col_count Then
-                        InvalidateSEL(SL, SL.trans, bakItem)
-                    End If
                     CheckSelectionBounds()
                     Dim evt As New HexBoxSelectionEventArgs(FocussedBoxIndex, bakSL, FocussedBoxIndex, Me.SL)
                     RaiseEvent SelectionChanged(Me, evt)
@@ -2542,8 +2582,13 @@ Public Class HexBox
                     InvalidateSEL(SL, SL.trans, SL.Curent)
                 End If
                 InvalidateCollumnHeader()
-                Me.Update()
             End If
+            If Not shift_val_pre = 0 Then
+                CheckSelectionBounds()
+                InvalidateSEL(SL, SL.trans, bakItem)
+                InvalidateSEL(SL, SL.trans, SL.Curent)
+            End If
+            Me.Update()
         End If
 
         If slider_down Then
@@ -2557,6 +2602,8 @@ Public Class HexBox
         dbSnap = False
         fullRowSelection = False
     End Sub
+    Friend bakSLBeforeShift As SelectionManager
+
     Friend Sub MouseDownEvent(ByVal left As Boolean)
         If MyRect.Height <= 0 Then Exit Sub
 
@@ -2630,6 +2677,8 @@ Public Class HexBox
                 rect2.X += slider_val / 100 * (rect1.Width - rect2.Width)
 
                 If rect1.Contains(m) Then
+                    Dim orgSL As SelectionManager = GetBoundsSelection(shift_val_pre)
+                    bakSLBeforeShift = orgSL
                     If left Then
                         slider_down = True
                         If rect2.Contains(m) Then
@@ -2647,6 +2696,10 @@ Public Class HexBox
                         shift_val = slider_val / 100 * SM.col_count
                     Else
                         slider_push = Not slider_push
+                        If Not shift_val_pre = 0 Then
+                            ReBoundsSelection()
+                            CheckSelectionBounds()
+                        End If
                         cancelContextMenu = True
                     End If
                     Me.Invalidate()
@@ -2920,7 +2973,7 @@ Public Class HexBox
             If slider_val < 0 Then slider_val = 0
 
             shift_val = slider_val / 100 * SM.col_count
-            CheckSelectionBounds()
+            ReBoundsSelection()
             Me.Invalidate()
             Exit Sub
         End If
@@ -3871,7 +3924,7 @@ Public Class HexBox
                 End If
             ElseIf e.KeyCode = Keys.Y Then
                 Redo()
-            ElseIf e.KeyCode = Keys.v Then
+            ElseIf e.KeyCode = Keys.V Then
                 Paste()
             ElseIf e.KeyCode = Keys.A Then
                 SelectAll()
@@ -3960,6 +4013,42 @@ Public Class HexBox
             If i.car > dl Then i.car = dl
         Next
     End Sub
+    Friend Function GetBoundsSelection(ByVal old_shift_pre As Long) As SelectionManager
+        old_shift_pre = -old_shift_pre
+        Dim box As BoxItem = SelectedBox
+        Dim trans As ITransformer = box.trans
+        Dim TI = Transformers.GetAdvancedTransformInfo(trans, SM.col_count, bb.GetLength + old_shift_pre)
+        Dim di As Long = Math.Floor(old_shift_pre / trans.LengthPerData) * TI.PerData
+        Dim dl As Long = TI.MaxAllCharsLength
+        Dim SL As SelectionManager = Me.SL.Clone
+
+        For Each i In SL.Items
+            i.anc += di
+            i.car += di
+        Next
+        Return SL
+    End Function
+    Friend Sub ReBoundsSelection()
+        Dim box As BoxItem = SelectedBox
+        Dim trans As ITransformer = box.trans
+        Dim TI = Transformers.GetAdvancedTransformInfo(trans, SM.col_count, bb.GetLength + shift_val_pre)
+        Dim di As Long = Math.Floor(shift_val_pre / trans.LengthPerData) * TI.PerData
+        Dim dl As Long = TI.MaxAllCharsLength
+        Dim SL As SelectionManager = Me.bakSLBeforeShift.Clone
+
+        For Each i In SL.Items
+            i.anc += di
+            i.car += di
+            If i.LF Then
+                If i.car Mod TI.CharsPerRow = 0 Then
+                    i.LF = True
+                Else
+                    i.LF = False
+                End If
+            End If
+        Next
+        Me.SL = SL
+    End Sub
     Private Sub SendKey(ByVal key As Keys, c As Char)
         Dim box As BoxItem = SelectedBox
         Dim trans As ITransformer = box.trans
@@ -4017,7 +4106,7 @@ Public Class HexBox
                     Else
                     End If
                 Else
-                        If lchr.Count <= car_sub Then
+                    If lchr.Count <= car_sub Then
                         If car_sub < trans.CharsPerData Then
                             lchr.Add(c)
                         Else
@@ -4198,6 +4287,7 @@ Public Class HexBox
     Friend Sub InvalidateSEL(ByVal sl As SelectionManager, ByVal trans As ITransformer, ByVal Items As SelectionItem())
         Dim A As Long = vscroll_val * SM.col_count
         Dim wContent As Integer = GetContentWidth()
+
         Dim rect As New Rectangle(SM.all_padLeft, SM.all_padTop, wContent, MyRect.Height)
 
         If rect.Height <= 0 Then Exit Sub
@@ -4264,6 +4354,7 @@ Public Class HexBox
     Friend Sub InvalidateSELAC(ByVal sl As SelectionManager, ByVal Item As SelectionItem)
         Dim A As Long = vscroll_val * SM.col_count
         Dim wContent As Integer = GetContentWidth()
+
         Dim rect As New Rectangle(SM.all_padLeft, SM.all_padTop, wContent, MyRect.Height)
 
         If rect.Height <= 0 Then Exit Sub
@@ -4314,7 +4405,9 @@ Public Class HexBox
         If slider_show Then
             hh = slider_size.Height
         End If
-        Dim rect As New Rectangle(SM.all_padLeft, SM.all_padTop, GetContentWidth, SM.header_height + SM.header_padTop + hh)
+        Dim wContent As Integer = GetContentWidth()
+
+        Dim rect As New Rectangle(SM.all_padLeft, SM.all_padTop, wContent, SM.header_height + SM.header_padTop + hh)
         Me.Invalidate(rect)
     End Sub
     Public Sub InvalidateLine(ByVal line As Long, ByVal count As Long)
@@ -4393,7 +4486,7 @@ Public Class HexBox
         Dim showLineStart As Long = vscroll_val
         Dim showLineEnd As Long = vscroll_val + ShowedRowCount
 
-        Dim isIntersect As Boolean = Helper.IntersectsWith(lineStart, lineEnd, showLineStart, showLineEnd)
+        Dim isIntersect As Boolean = Helper.IntersectsWith(lineStart, lineEnd + 1, showLineStart, showLineEnd)
         If isIntersect Then
             Dim invalidLineStart As Long = lineStart
             If invalidLineStart < showLineStart Then
@@ -4449,6 +4542,9 @@ Public Class HexBox
                 InvalidateLine(lineStart, lineEnd - lineStart)
             End If
         End If
+    End Sub
+    Public Sub ClearQRBuffer()
+        QR.Length = 0
     End Sub
 #End Region
 
@@ -4570,6 +4666,9 @@ Public Class HexBox
         Set(value As Integer)
             If Not SM.col_count = value Then
                 SM.col_count = value
+                ' If shift_val > value Then shift_val = value
+                ' If shift_val < -value Then shift_val = -value
+
                 SM.UpdateBoxes()
                 RefreshInfo()
                 Me.Invalidate()
@@ -5029,6 +5128,9 @@ Public Class HexBox
             Return oldVal
         End Get
         Set(value As Long)
+            ' If value > SM.col_count Then value = SM.col_count
+            ' If value < -SM.col_count Then value = -SM.col_count
+
             Dim oldVal As Long = slider_val
             If Not slider_push Then
                 oldVal = -oldVal
@@ -5043,6 +5145,48 @@ Public Class HexBox
             End If
         End Set
     End Property
+    Public Property FullHighLightLine As Boolean
+        Get
+            Return SM.FullHighlightLine
+        End Get
+        Set(value As Boolean)
+            If Not SM.FullHighlightLine = value Then
+                SM.FullHighlightLine = value
+                Me.Invalidate()
+                Me.Update()
+            End If
+        End Set
+    End Property
+    Public Property AutoCloseStream As Boolean
+        Get
+            Return SM.AutoCloseStream
+        End Get
+        Set(value As Boolean)
+            If Not SM.AutoCloseStream = value Then
+                SM.AutoCloseStream = value
+            End If
+        End Set
+    End Property
+    Public Sub LoadStream(ByVal stream As IO.Stream)
+        Dim old As IO.Stream = bb.BaseStream
+        bb.LoadStream(stream)
+        Dim evt As New LoadStreamEventArgs(old, stream, AutoCloseStream)
+        If evt.AutoCloseOld Then old.Close()
+    End Sub
+    Public Sub LoadFile(ByVal fileName As String)
+        Dim old As IO.Stream = bb.BaseStream
+        Dim Stream As IO.FileStream = New IO.FileStream(fileName, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)
+        bb.LoadStream(Stream)
+        Dim evt As New LoadStreamEventArgs(old, Stream, AutoCloseStream)
+        If evt.AutoCloseOld Then old.Close()
+    End Sub
+    Public Sub Save()
+        bb.Flush()
+    End Sub
+    Public Overloads Sub Dispose()
+        bb.Dispose()
+    End Sub
+
 #End Region
 
 #Region "ByteBuilder Event Handler"
@@ -5086,7 +5230,9 @@ Public Class HexBox
         End If
 
     End Sub
-
+    Private Sub ByteBuilder_Writing(sender As Object, e As ProgressionEventArgs) Handles bb.Writing
+        RaiseEvent Saving(Me, e)
+    End Sub
     Friend Sub CheckSelection()
         Dim max As Long = bb.GetLength + shift_val_pre
 
@@ -5402,7 +5548,8 @@ Public Class HexBox
         End If
 
         If inv Then
-            Dim rect As New Rectangle(0, 0, GetContentWidth, MyRect.Height)
+            Dim wContent As Integer = GetContentWidth()
+            Dim rect As New Rectangle(0, 0, wContent, MyRect.Height)
             Me.Invalidate(rect)
         End If
         Return v

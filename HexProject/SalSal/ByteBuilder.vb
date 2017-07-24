@@ -23,8 +23,10 @@ Public Class ByteBuilder
 
     Public Event Load(ByVal sender As Object, ByVal e As EventArgs)
     Public Event ByteChanged(ByVal sender As Object, ByVal e As ByteChangedEventArgs)
-    Public Event LoadUndoableState(ByVal sender As Object, ByVal Item As UndoableByteBuilderEventArgs)
-    Public Event NewUndoableState(ByVal sender As Object, ByVal Item As UndoableByteBuilderEventArgs)
+    Public Event LoadUndoableState(ByVal sender As Object, ByVal e As UndoableByteBuilderEventArgs)
+    Public Event NewUndoableState(ByVal sender As Object, ByVal e As UndoableByteBuilderEventArgs)
+    Public Event Writing(ByVal sender As Object, ByVal e As ProgressionEventArgs)
+
     Public Sub New(ByVal stream As IO.Stream)
         eu = True
 
@@ -1017,11 +1019,35 @@ Public Class ByteBuilder
 #End Region
 
 #Region "Save"
-    Friend perc As Single
+    'Friend perc As Single
+    Friend rpInterval As Long = 1024 * 1024 '1mb
+    Friend enMonitoring As Boolean = True
+
+    Public Property RefreshProggressionInterval As Integer
+        Get
+            Return rpInterval
+        End Get
+        Set(value As Integer)
+            If value < 0 Then value = 0
+            rpInterval = value
+        End Set
+    End Property
+    Public Property EnableProggressionMonitoring As Boolean
+        Get
+            Return enMonitoring
+        End Get
+        Set(value As Boolean)
+            enMonitoring = value
+        End Set
+    End Property
+
     Public Sub Flush()
-        perc = 0
+        'perc = 0
+        Dim max As Long = ActionRaws.Count
+        If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(1, max, 0))
         If ActionRaws.Count = 0 Then
-            perc = 100
+            'perc = 100
+            If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(1, max, max))
             Exit Sub
         End If
         Dim fs As Stream = Me.source
@@ -1067,10 +1093,12 @@ Public Class ByteBuilder
                     fs.Position = act.Position
                     fs.Write(act.Data, 0, act.Length)
                 End If
-                perc = i / l * 100
+                If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(1, max, i))
+                'perc = i / l * 100
             Next
             Me.Reset()
-            perc = 100
+            If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(1, max, max))
+            'perc = 100
         Else
             Dim fnd As Boolean = False
             For i As Integer = 0 To 10000
@@ -1088,13 +1116,21 @@ Public Class ByteBuilder
                 Dim afterLength As Long = GetLength()
                 Dim buffer(UShort.MaxValue - 1) As Byte
                 Dim rlen As Integer = 0
+                Dim rprog As Long = 0
+                If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(2, afterLength, 0))
                 For i As Long = 0 To afterLength - 1 Step UShort.MaxValue
                     rlen = Read(buffer, i, 0, UShort.MaxValue)
                     fs2.Write(buffer, 0, rlen)
-                    perc = i / afterLength * 100
+                    'perc = i / afterLength * 100
+                    rprog += UShort.MaxValue
+                    If rprog >= rpInterval Then
+                        rprog = 0
+                        If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(2, afterLength, i))
+                    End If
                 Next
-                Me.Reset()
+                If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(2, afterLength, afterLength))
 
+                Me.Reset()
                 If IsNothing(fz) Then
                     fs2.Flush()
                     fs2.Close()
@@ -1110,18 +1146,24 @@ Public Class ByteBuilder
                     fs.Position = 0
                     fs2.Position = 0
                     Dim b(r - 1) As Byte
+                    If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(3, afterLength, 0))
                     For i As Long = 0 To afterLength - 1 Step UShort.MaxValue
                         r = fs2.Read(b, 0, r)
                         If r = 0 Then Exit For
                         fs.Write(b, 0, r)
+                        rprog += UShort.MaxValue
+                        If rprog >= rpInterval Then
+                            rprog = 0
+                            If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(3, afterLength, i))
+                        End If
                     Next
                     fs.SetLength(afterLength)
+                    If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(3, afterLength, afterLength))
 
                     fs2.Close()
                     IO.File.Delete(fs2.Name)
                 End If
 
-                perc = 100
             End If
         End If
 
@@ -1215,18 +1257,24 @@ Public Class ByteBuilder
     End Sub
 
     Public Sub CopyTo(ByVal stream As IO.Stream)
-        perc = 0
-
+        ' perc = 0
         Dim afterLength As Long = GetLength()
         Dim buffer(UShort.MaxValue - 1) As Byte
         Dim rlen As Integer = 0
+        Dim rprog As Long = 0
+        If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(4, afterLength, 0))
         For i As Long = 0 To afterLength - 1 Step UShort.MaxValue
             rlen = Read(buffer, i, 0, UShort.MaxValue)
             stream.Write(buffer, 0, rlen)
-            perc = i / afterLength * 100
+            'perc = i / afterLength * 100
+            rprog += UShort.MaxValue
+            If rprog > rpInterval Then
+                rprog = 0
+                If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(4, afterLength, i))
+            End If
         Next
 
-        perc = 100
+        If enMonitoring Then RaiseEvent Writing(Me, New ProgressionEventArgs(4, afterLength, afterLength))
     End Sub
 #End Region
 
@@ -1555,3 +1603,19 @@ Public Enum DataStores As Integer
     Memory = 0
     External = 1
 End Enum
+
+Public Class ProgressionEventArgs
+    Inherits EventArgs
+    Public ReadOnly Property ID As Integer
+    Public ReadOnly Property Max As Long
+    Public ReadOnly Property Current As Long
+    Public ReadOnly Property Progression As Single
+    Public Sub New(ID As Integer, Max As Long, Current As Long)
+        Me.ID = ID
+        Me.Max = Max
+        Me.Current = Current
+        If Not Max = 0 Then
+            Progression = Current / Max
+        End If
+    End Sub
+End Class

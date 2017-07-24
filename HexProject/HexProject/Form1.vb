@@ -9,123 +9,124 @@ Public Class Form1
     Dim ts2 As New BaseStyle
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        CheckBox1.Checked = TransformBox1.AutoSnap
-        CheckBox2.Checked = TransformBox1.ShowBorder
-        CheckBox3.Checked = Not TransformBox1.CollumnHeaderMode = SalSal.HeaderMode.Hidden
-        CheckBox4.Checked = Not TransformBox1.OffsetType = SalSal.OffsetMode.Hidden
-        CheckBox5.Checked = TransformBox1.HighlightCurrentLine
+        CheckBox1.Checked = HexBox1.AutoSnap
+        CheckBox2.Checked = HexBox1.ShowBorder
+        CheckBox3.Checked = Not HexBox1.CollumnHeaderMode = SalSal.HeaderMode.Hidden
+        CheckBox4.Checked = Not HexBox1.OffsetType = SalSal.OffsetMode.Hidden
+        CheckBox5.Checked = HexBox1.HighlightCurrentLine
 
         ComboBox1.SelectedItem = "Hex"
         ComboBox2.SelectedItem = "Hex"
-        ComboBox3.SelectedItem = "8"
+        ComboBox3.SelectedItem = "16"
 
-        TransformBox1.ExtraWidth = Panel1.Width + Panel2.Width
+        HexBox1.ExtraWidth = Panel1.Width + Panel2.Width
         'TransformBox1.Styles.BackColor = SystemColors.Control
 
-        Dim clr As Color = TransformBox1.Styles.HighlightBackColor
+        Dim clr As Color = HexBox1.Styles.HighlightBackColor
         ts.HightlightBackColor = Color.DimGray
-        For Each i In TransformBox1.BoxItems
+        For Each i In HexBox1.BoxItems
             i.Style = ts
         Next
-        TransformBox1.SelectedBox.Style = ts2
+        HexBox1.SelectedBox.Style = ts2
 
-        TransformBox1.ShowInvalidateArea = False
-        TransformBox1.MultiSelection = True
-        TransformBox1.Collumn = 7
+        HexBox1.ShowInvalidateArea = False
+        HexBox1.MultiSelection = True
+        'HexBox1.Collumn = 16
         LoadFile("C:\Users\Faishal\Documents\Visual Studio 2015\Projects\HexProject\HexProject\bin\Debug\test.txt")
-
+        Button4.PerformClick()
     End Sub
 
     Private Sub CheckBox1_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox1.CheckedChanged
-        TransformBox1.AutoSnap = CheckBox1.Checked
+        HexBox1.AutoSnap = CheckBox1.Checked
     End Sub
 
     Private Sub CheckBox2_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox2.CheckedChanged
-        TransformBox1.ShowBorder = CheckBox2.Checked
+        HexBox1.ShowBorder = CheckBox2.Checked
+        HexBox1.FullHighLightLine = Not CheckBox2.Checked
     End Sub
 
     Private Sub CheckBox3_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox3.CheckedChanged
         If CheckBox3.Checked Then
-            TransformBox1.CollumnHeaderMode = SalSal.HeaderMode.Default
+            HexBox1.CollumnHeaderMode = SalSal.HeaderMode.Default
         Else
-            TransformBox1.CollumnHeaderMode = SalSal.HeaderMode.Hidden
+            HexBox1.CollumnHeaderMode = SalSal.HeaderMode.Hidden
         End If
     End Sub
 
     Private Sub CheckBox4_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox4.CheckedChanged
         If CheckBox4.Checked Then
-            TransformBox1.OffsetType = SalSal.OffsetMode.Hex2
+            HexBox1.OffsetType = SalSal.OffsetMode.Hex2
         Else
-            TransformBox1.OffsetType = SalSal.OffsetMode.Hidden
+            HexBox1.OffsetType = SalSal.OffsetMode.Hidden
         End If
     End Sub
 
     Private Sub CheckBox5_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox5.CheckedChanged
-        TransformBox1.HighlightCurrentLine = CheckBox5.Checked
+        HexBox1.HighlightCurrentLine = CheckBox5.Checked
     End Sub
 
     Private Sub ComboBox1_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBox1.SelectedIndexChanged
         Select Case ComboBox1.SelectedItem
             Case "Hex"
-                TransformBox1.ViewMode = SalSal.TransformMode.HexView
+                HexBox1.ViewMode = SalSal.TransformMode.HexView
             Case "Hex - 2 Bytes"
-                TransformBox1.ViewMode = SalSal.TransformMode.Hex2View
+                HexBox1.ViewMode = SalSal.TransformMode.Hex2View
             Case "Hex - 4 Bytes"
-                TransformBox1.ViewMode = SalSal.TransformMode.Hex4View
+                HexBox1.ViewMode = SalSal.TransformMode.Hex4View
             Case "Hex - 8 Bytes"
-                TransformBox1.ViewMode = SalSal.TransformMode.Hex8View
+                HexBox1.ViewMode = SalSal.TransformMode.Hex8View
             Case "Byte"
-                TransformBox1.ViewMode = SalSal.TransformMode.ByteView
+                HexBox1.ViewMode = SalSal.TransformMode.ByteView
             Case "Binary"
-                TransformBox1.ViewMode = SalSal.TransformMode.BinaryView
+                HexBox1.ViewMode = SalSal.TransformMode.BinaryView
             Case "Int16"
-                TransformBox1.ViewMode = SalSal.TransformMode.Int16View
+                HexBox1.ViewMode = SalSal.TransformMode.Int16View
             Case "Int32"
-                TransformBox1.ViewMode = SalSal.TransformMode.Int32View
+                HexBox1.ViewMode = SalSal.TransformMode.Int32View
             Case "Int64"
-                TransformBox1.ViewMode = SalSal.TransformMode.Int64View
+                HexBox1.ViewMode = SalSal.TransformMode.Int64View
             Case "UInt16"
-                TransformBox1.ViewMode = SalSal.TransformMode.UInt16View
+                HexBox1.ViewMode = SalSal.TransformMode.UInt16View
             Case "UInt32"
-                TransformBox1.ViewMode = SalSal.TransformMode.UInt32View
+                HexBox1.ViewMode = SalSal.TransformMode.UInt32View
             Case "UInt64"
-                TransformBox1.ViewMode = SalSal.TransformMode.UInt64View
+                HexBox1.ViewMode = SalSal.TransformMode.UInt64View
             Case "Float"
-                TransformBox1.ViewMode = SalSal.TransformMode.FloatView
+                HexBox1.ViewMode = SalSal.TransformMode.FloatView
             Case "Double"
-                TransformBox1.ViewMode = SalSal.TransformMode.DoubleView
+                HexBox1.ViewMode = SalSal.TransformMode.DoubleView
             Case "Char (ANSI)"
-                TransformBox1.ViewMode = SalSal.TransformMode.CharView
+                HexBox1.ViewMode = SalSal.TransformMode.CharView
             Case "Char (Unicode)"
-                TransformBox1.ViewMode = SalSal.TransformMode.UnicodeView
+                HexBox1.ViewMode = SalSal.TransformMode.UnicodeView
             Case "Text"
-                TransformBox1.ViewMode = SalSal.TransformMode.TextView
+                HexBox1.ViewMode = SalSal.TransformMode.TextView
             Case "TextW"
-                TransformBox1.ViewMode = SalSal.TransformMode.TextWView
+                HexBox1.ViewMode = SalSal.TransformMode.TextWView
         End Select
     End Sub
 
     Private Sub ComboBox2_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBox2.SelectedIndexChanged
         Select Case ComboBox2.SelectedItem
             Case "Hex"
-                TransformBox1.OffsetType = SalSal.OffsetMode.Hex4
+                HexBox1.OffsetType = SalSal.OffsetMode.Hex4
             Case "Decimal"
-                TransformBox1.OffsetType = SalSal.OffsetMode.Bytes4
+                HexBox1.OffsetType = SalSal.OffsetMode.Bytes4
         End Select
     End Sub
 
     Private Sub ComboBox3_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBox3.SelectedIndexChanged
         Select Case ComboBox3.SelectedItem
             Case "2"
-                TransformBox1.Collumn = 2
+                HexBox1.Collumn = 2
             Case "4"
-                TransformBox1.Collumn = 4
+                HexBox1.Collumn = 4
             Case "8"
-                TransformBox1.Collumn = 8
+                HexBox1.Collumn = 8
             Case "16"
-                TransformBox1.Collumn = 16
+                HexBox1.Collumn = 16
             Case "32"
-                TransformBox1.Collumn = 32
+                HexBox1.Collumn = 32
         End Select
     End Sub
 
@@ -137,14 +138,9 @@ Public Class Form1
         End If
     End Sub
     Friend Sub LoadFile(ByVal path As String)
-        Dim bb As SalSal.ByteBuilder = TransformBox1.ByteBuilder
-        Dim base As IO.Stream = bb.BaseStream
-        Dim fs As IO.FileStream = New IO.FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)
-        bb.LoadStream(fs)
-        base.Close()
+        HexBox1.LoadFile(path)
         TextBox1.Text = path
-
-        Label6.Text = SalSal.Helper.GetSizeText(fs.Length)
+        Label6.Text = SalSal.Helper.GetSizeText(HexBox1.ByteBuilder.Length)
         RefreshStatus()
     End Sub
 
@@ -152,18 +148,18 @@ Public Class Form1
 
     End Sub
     Dim hf As IntPtr = 0
-    Private Sub TransformBox1_GDI32Paint(sender As Object, e As GDI32PaintEventArgs) Handles TransformBox1.GDI32Paint
+    Private Sub TransformBox1_GDI32Paint(sender As Object, e As GDI32PaintEventArgs) Handles HexBox1.GDI32Paint
         If CheckBox6.Checked Then
             If hf = 0 Then
-                hf = TransformBox1.Styles.Font.ToHfont
+                hf = HexBox1.Styles.Font.ToHfont
             End If
 
             Dim bw As Integer = 0
-            For Each box In TransformBox1.BoxItems
+            For Each box In HexBox1.BoxItems
                 Dim trans As ITransformer = box.Transformer
-                Dim x As Integer = TransformBox1.OffsetWidth + box.PaddingLeft + e.Translate.X + bw
+                Dim x As Integer = HexBox1.OffsetWidth + box.PaddingLeft + e.Translate.X + bw
                 x -= Math.Floor(Helper.GetTextWidth(hf, "".PadRight(trans.Sparator)) / 2)
-                Dim c As Integer = TransformBox1.Collumn - 1
+                Dim c As Integer = HexBox1.Collumn - 1
                 For i As Integer = 0 To c - 4 Step 4
                     Dim w As Single = Helper.GetTextWidth(hf, "".PadRight((trans.CharsPerData + trans.Sparator) / trans.LengthPerData * 4))
                     Helper.FillRectangle(e.hDC, New Rectangle(x + w, 0, 1, Me.Height), Color.Yellow)
@@ -175,11 +171,11 @@ Public Class Form1
     End Sub
 
     Private Sub ToolStripStatusLabel1_Click(sender As Object, e As EventArgs) Handles ToolStripStatusLabel1.Click
-        If TransformBox1.WriteMode = WriteMode.Overwrite Then
-            TransformBox1.WriteMode = WriteMode.Insert
+        If HexBox1.WriteMode = WriteMode.Overwrite Then
+            HexBox1.WriteMode = WriteMode.Insert
             ToolStripStatusLabel1.Text = "INS"
         Else
-            TransformBox1.WriteMode = WriteMode.Overwrite
+            HexBox1.WriteMode = WriteMode.Overwrite
             ToolStripStatusLabel1.Text = "OVR"
         End If
     End Sub
@@ -187,22 +183,22 @@ Public Class Form1
     Dim status1Hex As Boolean
     Dim status2Hex As Boolean
     Public Sub RefreshStatus()
-        Dim box As BoxItem = TransformBox1.SelectedBox
-        Dim fileSize As Long = TransformBox1.ByteBuilder.GetLength
+        Dim box As BoxItem = HexBox1.SelectedBox
+        Dim fileSize As Long = HexBox1.ByteBuilder.GetLength
         Dim fileName As String = "Ready"
-        Dim fs As IO.FileStream = TryCast(TransformBox1.ByteBuilder.BaseStream, IO.FileStream)
+        Dim fs As IO.FileStream = TryCast(HexBox1.ByteBuilder.BaseStream, IO.FileStream)
         If Not IsNothing(fs) Then
             fileName = IO.Path.GetFileName(fs.Name)
         End If
-        Dim caret As Long = TransformBox1.Selection.Curent.Caret
+        Dim caret As Long = HexBox1.Selection.Curent.Caret
         Dim cpr As Integer = box.CharsLengthPerRow
-        Dim lines As Long = Math.Floor(fileSize / TransformBox1.Collumn)
+        Dim lines As Long = Math.Floor(fileSize / HexBox1.Collumn)
         Dim curentLine As Long = Math.Floor(caret / cpr)
         Dim col As Integer = Math.Floor((caret Mod cpr) / (box.Transformer.CharsPerData + box.Transformer.Sparator))
-        Dim sel As Long = TransformBox1.Selection.SelectionLength
-        Dim selb As Long = Math.Floor(TransformBox1.Selection.SelectionLength / cpr) * TransformBox1.Collumn
-        Dim selc As Integer = Math.Ceiling((TransformBox1.Selection.SelectionLength Mod cpr) / (box.Transformer.CharsPerData + box.Transformer.Sparator)) * box.Transformer.LengthPerData
-        If selc > TransformBox1.Collumn Then selc = TransformBox1.Collumn
+        Dim sel As Long = HexBox1.Selection.SelectionLength
+        Dim selb As Long = Math.Floor(HexBox1.Selection.SelectionLength / cpr) * HexBox1.Collumn
+        Dim selc As Integer = Math.Ceiling((HexBox1.Selection.SelectionLength Mod cpr) / (box.Transformer.CharsPerData + box.Transformer.Sparator)) * box.Transformer.LengthPerData
+        If selc > HexBox1.Collumn Then selc = HexBox1.Collumn
         selb += selc
 
         ToolStripStatusLabel3.Text = fileName
@@ -227,26 +223,26 @@ Public Class Form1
         status2Hex = Not status2Hex
         RefreshStatus()
     End Sub
-    Private Sub TransformBox1_SelectionChanged(sender As Object, e As SalSal.HexBoxSelectionEventArgs) Handles TransformBox1.SelectionChanged
+    Private Sub TransformBox1_SelectionChanged(sender As Object, e As SalSal.HexBoxSelectionEventArgs) Handles HexBox1.SelectionChanged
         RefreshStatus()
         If Not e.OldBoxIndex = e.NewBoxIndex Then
-            For Each i In TransformBox1.BoxItems
+            For Each i In HexBox1.BoxItems
                 i.Style = ts
             Next
-            TransformBox1.BoxItems(e.NewBoxIndex).Style = ts2
+            HexBox1.BoxItems(e.NewBoxIndex).Style = ts2
         End If
-        Dim tsx As BaseStyle = TransformBox1.Styles.GetTextStyle(e.NewSelection.Curent.Caret, TransformBox1.SelectedBoxIndex, PointUnit.Char)
-        Dim textColor As Color = TransformBox1.Styles.TextColor
-        Dim backColor As Color = TransformBox1.Styles.BackColor
-        If Not IsNothing(TransformBox1.SelectedBox.Style) Then
-            textColor = TransformBox1.SelectedBox.Style.TextColor
-            backColor = TransformBox1.SelectedBox.Style.BackColor
+        Dim tsx As BaseStyle = HexBox1.Styles.GetTextStyle(e.NewSelection.Curent.Caret, HexBox1.SelectedBoxIndex, PointUnit.Char)
+        Dim textColor As Color = HexBox1.Styles.TextColor
+        Dim backColor As Color = HexBox1.Styles.BackColor
+        If Not IsNothing(HexBox1.SelectedBox.Style) Then
+            textColor = HexBox1.SelectedBox.Style.TextColor
+            backColor = HexBox1.SelectedBox.Style.BackColor
 
             If textColor.IsEmpty Then
-                textColor = TransformBox1.Styles.TextColor
+                textColor = HexBox1.Styles.TextColor
             End If
             If backColor.IsEmpty Then
-                backColor = TransformBox1.Styles.BackColor
+                backColor = HexBox1.Styles.BackColor
             End If
         End If
         If Not IsNothing(tsx) Then
@@ -266,11 +262,11 @@ Public Class Form1
         If colaps Then
             Button4.Text = ">"
             Panel1.Visible = True
-            TransformBox1.ExtraWidth = Panel1.Width + Panel2.Width
+            HexBox1.ExtraWidth = Panel1.Width + Panel2.Width
         Else
             Button4.Text = "<"
             Panel1.Visible = False
-            TransformBox1.ExtraWidth = Panel2.Width
+            HexBox1.ExtraWidth = Panel2.Width
         End If
 
         colaps = Not colaps
@@ -284,7 +280,7 @@ Public Class Form1
     End Sub
 
     Private Sub Button3_Click(sender As Object, e As EventArgs) Handles Button3.Click
-        Dim s As StyleSet = TransformBox1.Styles
+        Dim s As StyleSet = HexBox1.Styles
         s.BackColor = SystemColors.Window
         s.TextColor = SystemColors.WindowText
         s.HighlightBackColor = SystemColors.Highlight
@@ -309,15 +305,15 @@ Public Class Form1
         s.SliderPressedColor = SystemColors.ControlDark
 
 
-        Dim clr As Color = TransformBox1.Styles.HighlightBackColor
+        Dim clr As Color = HexBox1.Styles.HighlightBackColor
         ts.HightlightBackColor = Color.DimGray
-        For Each i In TransformBox1.BoxItems
+        For Each i In HexBox1.BoxItems
             i.Style = ts
         Next
-        TransformBox1.SelectedBox.Style = Nothing
+        HexBox1.SelectedBox.Style = Nothing
     End Sub
     Private Sub Button5_Click(sender As Object, e As EventArgs) Handles Button5.Click
-        Dim s As StyleSet = TransformBox1.Styles
+        Dim s As StyleSet = HexBox1.Styles
         s.BackColor = Color.FromArgb(&HFF1E1E1E)
         s.TextColor = Color.FromArgb(&HFFDCDCDC)
         s.HighlightBackColor = Color.FromArgb(150, SystemColors.Highlight) 'Color.FromArgb(&HFF264F78)
@@ -341,16 +337,16 @@ Public Class Form1
         s.SliderBorderColor = s.BorderColor
         s.SliderPressedColor = s.OffsetTextColor
 
-        Dim clr As Color = TransformBox1.Styles.HighlightBackColor
+        Dim clr As Color = HexBox1.Styles.HighlightBackColor
         ts.HightlightBackColor = Color.FromArgb(clr.A, Helper.Blend(Color.Red, clr, 0.5))
-        For Each i In TransformBox1.BoxItems
+        For Each i In HexBox1.BoxItems
             i.Style = ts
         Next
-        TransformBox1.SelectedBox.Style = Nothing
+        HexBox1.SelectedBox.Style = Nothing
     End Sub
 
     Private Sub Button7_Click(sender As Object, e As EventArgs) Handles Button7.Click
-        Dim sl As SelectionManager = TransformBox1.Selection
+        Dim sl As SelectionManager = HexBox1.Selection
 
         Dim cd As New ColorDialog
         cd.Color = Button7.BackColor
@@ -364,14 +360,14 @@ Public Class Form1
                 ts.Length = i.SelectionLength
                 ts.Unit = PointUnit.Char
                 ts.StyleTarget = StyleTarget.SelectedContents
-                ts.BoxIndex.Add(TransformBox1.SelectedBoxIndex)
-                TransformBox1.Styles.AddTextStyle(ts)
+                ts.BoxIndex.Add(HexBox1.SelectedBoxIndex)
+                HexBox1.Styles.AddTextStyle(ts)
             Next
         End If
     End Sub
 
     Private Sub Button6_Click(sender As Object, e As EventArgs) Handles Button6.Click
-        Dim sl As SelectionManager = TransformBox1.Selection
+        Dim sl As SelectionManager = HexBox1.Selection
 
         Dim cd As New ColorDialog
         cd.Color = Button6.BackColor
@@ -385,37 +381,41 @@ Public Class Form1
                 ts.Length = i.SelectionLength
                 ts.Unit = PointUnit.Char
                 ts.StyleTarget = StyleTarget.SelectedContents
-                ts.BoxIndex.Add(TransformBox1.SelectedBoxIndex)
-                TransformBox1.Styles.AddTextStyle(ts)
+                ts.BoxIndex.Add(HexBox1.SelectedBoxIndex)
+                HexBox1.Styles.AddTextStyle(ts)
             Next
         End If
     End Sub
 
     Private Sub Button8_Click(sender As Object, e As EventArgs) Handles Button8.Click
         Dim cd As New FontDialog
-        cd.Font = TransformBox1.Styles.Font
+        cd.Font = HexBox1.Styles.Font
         If cd.ShowDialog(Me) = DialogResult.OK Then
-            TransformBox1.Styles.Font = cd.Font
+            HexBox1.Styles.Font = cd.Font
         End If
     End Sub
 
     Private Sub Button9_Click(sender As Object, e As EventArgs) Handles Button9.Click
-        Dim sl As SelectionManager = TransformBox1.Selection
+        Dim sl As SelectionManager = HexBox1.Selection
         For Each i In sl.Items
-            TransformBox1.Styles.ClearTextStyle(i.SelectionStart, i.SelectionLength, PointUnit.Char, StyleTarget.SelectedContents, {TransformBox1.SelectedBoxIndex})
+            HexBox1.Styles.ClearTextStyle(i.SelectionStart, i.SelectionLength, PointUnit.Char, StyleTarget.SelectedContents, {HexBox1.SelectedBoxIndex})
         Next
 
     End Sub
 
     Private Sub CheckBox6_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox6.CheckedChanged
-        TransformBox1.Invalidate()
+        HexBox1.Invalidate()
     End Sub
 
     Private Sub CheckBox7_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox7.CheckedChanged
-        TransformBox1.ForceHotFind = CheckBox7.Checked
+        HexBox1.ForceHotFind = CheckBox7.Checked
     End Sub
 
     Private Sub CheckBox8_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox8.CheckedChanged
-        TransformBox1.ShowShiftSlider = CheckBox8.Checked
+        HexBox1.ShowShiftSlider = CheckBox8.Checked
+    End Sub
+
+    Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
+        HexBox1.ByteBuilder.Flush()
     End Sub
 End Class
